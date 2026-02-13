@@ -1,0 +1,148 @@
+from django.contrib import admin
+from django.utils.html import format_html
+from .models import CustomUser, KYC, OTP
+
+
+@admin.register(CustomUser)
+class CustomUserAdmin(admin.ModelAdmin):
+    list_display = ['username', 'email', 'phone_number', 'role_badge', 'is_kyc_approved', 'created_at']
+    list_filter = ['role', 'is_kyc_approved', 'created_at']
+    search_fields = ['username', 'email', 'phone_number']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('User Information', {
+            'fields': ('username', 'email', 'phone_number', 'first_name', 'password')
+        }),
+        ('Role & Status', {
+            'fields': ('role', 'is_kyc_approved')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+        ('Permissions', {
+            'fields': ('is_staff', 'is_superuser', 'is_active'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def role_badge(self, obj):
+        colors = {
+            'SUPERADMIN': '#ff6b6b',
+            'RETAILER': '#4ecdc4',
+        }
+        color = colors.get(obj.role, '#95a5a6')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 3px;">{}</span>',
+            color, obj.get_role_display()
+        )
+    role_badge.short_description = 'Role'
+
+
+@admin.register(KYC)
+class KYCAdmin(admin.ModelAdmin):
+    list_display = ['user_name', 'shop_name', 'status_badge', 'submitted_at', 'approved_at']
+    list_filter = ['status', 'submitted_at', 'approved_at']
+    search_fields = ['user__username', 'user__email', 'shop_name', 'gst_number', 'customer_email']
+    readonly_fields = ['submitted_at', 'approved_at', 'user', 'drug_license_preview', 'id_proof_preview', 'store_photo_preview']
+    
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user',)
+        }),
+        ('Shop Details', {
+            'fields': ('shop_name', 'shop_address')
+        }),
+        ('Customer Details', {
+            'fields': ('customer_name', 'customer_address', 'customer_mobile', 'customer_email')
+        }),
+        ('Business Documents', {
+            'fields': ('gst_number', 'drug_license', 'drug_license_preview', 'id_proof', 'id_proof_preview', 'store_photo', 'store_photo_preview')
+        }),
+        ('Status', {
+            'fields': ('status', 'rejection_reason')
+        }),
+        ('Timestamps', {
+            'fields': ('submitted_at', 'approved_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['approve_kyc', 'reject_kyc']
+    
+    def user_name(self, obj):
+        return obj.user.username
+    user_name.short_description = 'User'
+    
+    def drug_license_preview(self, obj):
+        if obj.drug_license:
+            return format_html(
+                '<a href="{}" target="_blank">View Drug License</a>',
+                obj.drug_license.url
+            )
+        return 'No file'
+    drug_license_preview.short_description = 'Drug License Preview'
+    
+    def id_proof_preview(self, obj):
+        if obj.id_proof:
+            return format_html(
+                '<a href="{}" target="_blank">View ID Proof</a>',
+                obj.id_proof.url
+            )
+        return 'No file'
+    id_proof_preview.short_description = 'ID Proof Preview'
+    
+    def store_photo_preview(self, obj):
+        if obj.store_photo:
+            return format_html(
+                '<img src="{}" width="200" height="auto" />',
+                obj.store_photo.url
+            )
+        return 'No image'
+    store_photo_preview.short_description = 'Store Photo Preview'
+    
+    def status_badge(self, obj):
+        colors = {
+            'PENDING': '#f39c12',
+            'APPROVED': '#27ae60',
+            'REJECTED': '#e74c3c',
+        }
+        color = colors.get(obj.status, '#95a5a6')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 3px;">{}</span>',
+            color, obj.get_status_display()
+        )
+    status_badge.short_description = 'Status'
+    
+    def approve_kyc(self, request, queryset):
+        from django.utils import timezone
+        updated = 0
+        for kyc in queryset.filter(status='PENDING'):
+            kyc.status = 'APPROVED'
+            kyc.approved_at = timezone.now()
+            kyc.user.is_kyc_approved = True
+            kyc.user.save()
+            kyc.save()
+            updated += 1
+        self.message_user(request, f'{updated} KYC(s) approved successfully.')
+    approve_kyc.short_description = 'Approve selected KYCs'
+    
+    def reject_kyc(self, request, queryset):
+        for kyc in queryset.filter(status='PENDING'):
+            kyc.status = 'REJECTED'
+            kyc.save()
+        self.message_user(request, f'{queryset.count()} KYC(s) rejected.')
+    reject_kyc.short_description = 'Reject selected KYCs'
+
+
+@admin.register(OTP)
+class OTPAdmin(admin.ModelAdmin):
+    list_display = ['user_name', 'email', 'otp_code', 'is_verified', 'created_at']
+    list_filter = ['is_verified', 'created_at']
+    search_fields = ['user__username', 'user__email', 'email']
+    readonly_fields = ['created_at', 'user', 'otp_code', 'email']
+    
+    def user_name(self, obj):
+        return obj.user.username
+    user_name.short_description = 'User'

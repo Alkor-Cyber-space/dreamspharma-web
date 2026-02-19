@@ -26,6 +26,7 @@ class CustomUser(AbstractUser):
     ])
 
     is_kyc_approved = models.BooleanField(default=False)
+    first_login_otp_verified = models.BooleanField(default=False, help_text="Tracks if user has completed first login OTP verification")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -63,17 +64,17 @@ class KYC(models.Model):
   
     shop_name = models.CharField(max_length=200)
     shop_address = models.TextField()
+    shop_email = models.EmailField(blank=True, null=True)
+    shop_phone = models.CharField(max_length=15, validators=[
+        RegexValidator(r'^\d{10,15}$', 'Phone number must be 10-15 digits')
+    ], blank=True, null=True)
     
   
-    customer_name = models.CharField(max_length=200)
     customer_address = models.TextField()
-    customer_mobile = models.CharField(max_length=15, validators=[
-        RegexValidator(r'^\d{10,15}$', 'Phone number must be 10-15 digits')
-    ])
-    customer_email = models.EmailField()
     
     
     gst_number = models.CharField(max_length=20, unique=True)
+    drug_license_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
     
   
     drug_license = models.FileField(
@@ -85,7 +86,11 @@ class KYC(models.Model):
         validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])],
         help_text='Aadhaar or other valid ID'
     )
-    store_photo = models.ImageField(upload_to='kyc/store_photos/', help_text='Front view of store')
+    store_photo = models.FileField(
+        upload_to='kyc/store_photos/',
+        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])],
+        help_text='Front view of store - direct camera picture or document (PDF, JPG, JPEG, PNG)'
+    )
     
     submitted_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(blank=True, null=True)
@@ -97,11 +102,11 @@ class KYC(models.Model):
 
 class OTP(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='otps')
-    otp_code = models.CharField(max_length=6)
+    otp_code = models.CharField(max_length=4)
     email = models.EmailField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
-    OTP_EXPIRY_TIME = 30  # 30 seconds
+    OTP_EXPIRY_TIME = 60  # 60 seconds (1 minute)
     
     def is_expired(self):
         """Check if OTP has expired (5 minutes)"""
@@ -117,7 +122,7 @@ class OTP(models.Model):
         return max(0, int(remaining))
     
     def generate_otp(self):
-        self.otp_code = ''.join(random.choices(string.digits, k=6))
+        self.otp_code = ''.join(random.choices(string.digits, k=4))
         self.email = self.user.email
         self.is_verified = False
         self.save()

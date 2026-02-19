@@ -44,7 +44,7 @@ class CustomUserAdmin(admin.ModelAdmin):
 class KYCAdmin(admin.ModelAdmin):
     list_display = ['user_name', 'shop_name', 'status_badge', 'submitted_at', 'approved_at']
     list_filter = ['status', 'submitted_at', 'approved_at']
-    search_fields = ['user__username', 'user__email', 'shop_name', 'gst_number', 'customer_email']
+    search_fields = ['user__username', 'user__email', 'shop_name', 'shop_email', 'shop_phone', 'gst_number', 'drug_license_number']
     readonly_fields = ['submitted_at', 'approved_at', 'user', 'drug_license_preview', 'id_proof_preview', 'store_photo_preview']
     
     fieldsets = (
@@ -52,13 +52,13 @@ class KYCAdmin(admin.ModelAdmin):
             'fields': ('user',)
         }),
         ('Shop Details', {
-            'fields': ('shop_name', 'shop_address')
+            'fields': ('shop_name', 'shop_address', 'shop_email', 'shop_phone')
         }),
         ('Customer Details', {
-            'fields': ('customer_name', 'customer_address', 'customer_mobile', 'customer_email')
+            'fields': ('customer_address',)
         }),
         ('Business Documents', {
-            'fields': ('gst_number', 'drug_license', 'drug_license_preview', 'id_proof', 'id_proof_preview', 'store_photo', 'store_photo_preview')
+            'fields': ('gst_number', 'drug_license_number', 'drug_license', 'drug_license_preview', 'id_proof', 'id_proof_preview', 'store_photo', 'store_photo_preview')
         }),
         ('Status', {
             'fields': ('status', 'rejection_reason')

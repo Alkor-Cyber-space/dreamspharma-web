@@ -1,4 +1,3 @@
-// Sidebar.jsx
 import React from "react";
 import { NavLink } from "react-router-dom";
 import {
@@ -16,7 +15,7 @@ import {
 
 export default function Sidebar() {
   const menuItems = [
-    { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, end: true },
     { name: "Retailers & KYC", path: "/retailers", icon: Users },
     { name: "Orders", path: "/orders", icon: ShoppingCart },
     { name: "Refunds", path: "/refunds", icon: RefreshCcw },
@@ -32,7 +31,7 @@ export default function Sidebar() {
     <div className="w-64 bg-[#EDEDED] shadow-[4px_0_15px_rgba(0,0,0,0.08)] min-h-screen py-6">
       
       {/* Logo Section */}
-      <div className="flex items-center gap-3 mb-10">
+      <div className="flex items-center gap-3 mb-10 px-6">
         <div className="w-8 h-8 bg-teal-600 rounded-md flex items-center justify-center text-white font-bold">
           DP
         </div>
@@ -42,7 +41,7 @@ export default function Sidebar() {
       </div>
 
       {/* Menu */}
-      <ul className="space-y-2">
+      <ul className="space-y-1">
         {menuItems.map((item, index) => {
           const Icon = item.icon;
 
@@ -50,12 +49,13 @@ export default function Sidebar() {
             <li key={index}>
               <NavLink
                 to={item.path}
+                end={item.end}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 pl-10 py-4  text-sm font-medium transition-all duration-200
+                  `flex items-center gap-3 px-10 py-3 text-sm font-medium transition-all duration-200
                    ${
                      isActive
-                       ? "bg-[#F5F7FA] text-[#127690] shadow-sm border-l-5 border-[#127690]"
-                       : "text-gray-600 hover:bg-[#F5F7FA] hover:text-[#5f8b96]   hover:shadow-sm"
+                       ? "bg-white text-[#127690] border-l-4 border-[#127690]"
+                       : "text-gray-600 hover:bg-white hover:text-[#5f8b96]"
                    }`
                 }
               >

@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { loginAPI } from "../services/allAPI";
 
 export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -16,8 +17,19 @@ export default function AdminLogin() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
+    try {
+        const response = await loginAPI(formData);
+        if (response.status === 200) {
+          const { token } = response.data;
+          localStorage.setItem("token", token);
+              navigate("/dashboard");
+
+        }
+      
+    } catch (error) {
+      setError("Invalid credentials");
+    }
+    setLoading(false);
 
   };
 
@@ -44,14 +56,14 @@ export default function AdminLogin() {
         <h1 className="text-5xl font-light text-white mb-8">Sign In</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Email */}
+          {/* username */}
           <div>
-            <label className="text-sm text-gray-300">Email</label>
+            <label className="text-sm text-gray-300">username</label>
             <input
-              type="email"
-              name="email"
+              type="text"
+              name="username"
               placeholder="test1@gmail.com"
-              value={formData.email}
+              value={formData.username}
               onChange={handleChange}
               className="w-full mt-2 px-4 py-3 rounded-lg 
               bg-[#123347] 

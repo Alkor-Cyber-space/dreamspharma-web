@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+
 import axios from "axios";
 import { loginAPI } from "../services/allAPI";
 export default function AdminLogin() {
@@ -14,6 +15,7 @@ export default function AdminLogin() {
     setError(""); 
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
+
 
  const handleSubmit = async (e) => {
   e.preventDefault();

@@ -1,16 +1,17 @@
+
 import React from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
-  Users,
   ShoppingCart,
   RefreshCcw,
   Package,
+  Database,
   FileBarChart2,
   Tag,
   FileText,
   Settings,
-  Database,
+  Users,
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -29,7 +30,7 @@ export default function Sidebar() {
 
   return (
     <div className="w-64 bg-[#EDEDED] shadow-[4px_0_15px_rgba(0,0,0,0.08)] min-h-screen py-6">
-      
+
       {/* Logo Section */}
       <div className="flex items-center gap-3 mb-10 px-6">
         <div className="w-8 h-8 bg-teal-600 rounded-md flex items-center justify-center text-white font-bold">
@@ -52,11 +53,10 @@ export default function Sidebar() {
                 end={item.end}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-10 py-3 text-sm font-medium transition-all duration-200
-                   ${
-                     isActive
-                       ? "bg-white text-[#127690] border-l-4 border-[#127690]"
-                       : "text-gray-600 hover:bg-white hover:text-[#5f8b96]"
-                   }`
+                   ${isActive
+                    ? "bg-white text-[#127690] border-l-4 border-[#127690]"
+                    : "text-gray-600 hover:bg-white hover:text-[#5f8b96]"
+                  }`
                 }
               >
                 <Icon size={18} />

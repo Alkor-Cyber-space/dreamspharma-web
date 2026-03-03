@@ -1,11 +1,6 @@
 import axios from "axios";
 
-// Base URL
-const serverUrl = "http://127.0.0.1:8000/api/";
 
-// ==================
-// 🔐 LOGIN API
-// ==================
 export const loginAPI = async (loginData) => {
   try {
     const response = await axios.post(
@@ -16,4 +11,5 @@ export const loginAPI = async (loginData) => {
   } catch (error) {
     throw error;
   }
+
 };

@@ -5,12 +5,14 @@ from rest_framework.views import APIView
 from django.contrib.auth import get_user_model, logout
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from dreamspharmaapp.models import KYC, SalesOrder
+from dreamspharmaapp.models import KYC, SalesOrder, Category, ItemMaster, ProductInfo
 from .serializers import (
-    RetailerKYCDetailSerializer, ApproveKYCSerializer, RejectKYCSerializer, DashboardStatisticsSerializer, ChangePasswordSerializer, SuperAdminProfileSerializer, SuperAdminProfileImageSerializer
+    RetailerKYCDetailSerializer, ApproveKYCSerializer, RejectKYCSerializer, DashboardStatisticsSerializer, ChangePasswordSerializer, SuperAdminProfileSerializer, SuperAdminProfileImageSerializer, AddCategorySerializer
 )
+import logging
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class SuperAdminGetAllRetailersView(APIView):
@@ -205,19 +207,25 @@ class GetSuperAdminProfileView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-class UploadSuperAdminProfileImageView(APIView):
+class ProfileImageView(APIView):
     """
-    API endpoint for super admin to upload profile image.
-    POST /api/superadmin/profile/image/ - Upload profile image
+    Profile Image Management - Upload and Delete
+    POST: Upload profile image
+    DELETE: Delete profile image
     """
     permission_classes = [IsAuthenticated]
 
+    def _check_superadmin(self, request):
+        """Check if user is SUPERADMIN"""
+        return request.user.role == 'SUPERADMIN'
+
     def post(self, request):
         """Upload profile image for super admin"""
-        # Check if user is a superadmin
         if request.user.role != 'SUPERADMIN':
             return Response({
-                'error': 'Only Super Admin can access this endpoint'
+                'code': '403',
+                'type': 'uploadProfileImage',
+                'message': 'Forbidden - Only SUPERADMIN can access this endpoint'
             }, status=status.HTTP_403_FORBIDDEN)
         
         serializer = SuperAdminProfileImageSerializer(
@@ -227,50 +235,115 @@ class UploadSuperAdminProfileImageView(APIView):
         )
         
         if serializer.is_valid():
-            serializer.save()
-            return Response({
-                'message': 'Profile image uploaded successfully',
-                'profile_image': serializer.data['profile_image']
-            }, status=status.HTTP_200_OK)
+            try:
+                serializer.save()
+                logger.info(f"[PROFILE_IMAGE_UPLOADED] User: {request.user.username}")
+                
+                return Response({
+                    'code': '200',
+                    'type': 'uploadProfileImage',
+                    'message': 'Profile image uploaded successfully',
+                    'data': {
+                        'profile_image': serializer.data['profile_image']
+                    }
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"Error uploading profile image: {str(e)}")
+                return Response({
+                    'code': '500',
+                    'type': 'uploadProfileImage',
+                    'message': f'Error uploading image: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response({
-            'error': 'Image upload failed',
-            'details': serializer.errors
+            'code': '400',
+            'type': 'uploadProfileImage',
+            'message': 'Image upload failed',
+            'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
 
-
-class DeleteSuperAdminProfileImageView(APIView):
-    """
-    API endpoint for super admin to delete profile image.
-    DELETE /api/superadmin/profile/image/ - Delete profile image
-    """
-    permission_classes = [IsAuthenticated]
+    def put(self, request):
+        """Update profile image for super admin"""
+        if request.user.role != 'SUPERADMIN':
+            return Response({
+                'code': '403',
+                'type': 'updateProfileImage',
+                'message': 'Forbidden - Only SUPERADMIN can access this endpoint'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = SuperAdminProfileImageSerializer(
+            request.user, 
+            data=request.data, 
+            partial=True
+        )
+        
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                logger.info(f"[PROFILE_IMAGE_UPDATED] User: {request.user.username}")
+                
+                return Response({
+                    'code': '200',
+                    'type': 'updateProfileImage',
+                    'message': 'Profile image updated successfully',
+                    'data': {
+                        'profile_image': serializer.data['profile_image']
+                    }
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"Error updating profile image: {str(e)}")
+                return Response({
+                    'code': '500',
+                    'type': 'updateProfileImage',
+                    'message': f'Error updating image: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'code': '400',
+            'type': 'updateProfileImage',
+            'message': 'Image update failed',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request):
         """Delete profile image for super admin"""
-        # Check if user is a superadmin
         if request.user.role != 'SUPERADMIN':
             return Response({
-                'error': 'Only Super Admin can access this endpoint'
+                'code': '403',
+                'type': 'deleteProfileImage',
+                'message': 'Forbidden - Only SUPERADMIN can access this endpoint'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # Check if user has a profile image
         if not request.user.profile_image:
             return Response({
-                'error': 'No profile image found to delete'
+                'code': '404',
+                'type': 'deleteProfileImage',
+                'message': 'No profile image found to delete'
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # Delete the image file
-        if request.user.profile_image.storage.exists(request.user.profile_image.name):
-            request.user.profile_image.storage.delete(request.user.profile_image.name)
+        try:
+            if request.user.profile_image.storage.exists(request.user.profile_image.name):
+                request.user.profile_image.storage.delete(request.user.profile_image.name)
+            
+            request.user.profile_image = None
+            request.user.save()
+            
+            logger.info(f"[PROFILE_IMAGE_DELETED] User: {request.user.username}")
+            
+            return Response({
+                'code': '200',
+                'type': 'deleteProfileImage',
+                'message': 'Profile image deleted successfully'
+            }, status=status.HTTP_200_OK)
         
-        # Clear the profile_image field
-        request.user.profile_image = None
-        request.user.save()
-        
-        return Response({
-            'message': 'Profile image deleted successfully'
-        }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error deleting profile image: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'deleteProfileImage',
+                'message': f'Error deleting image: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class SuperAdminLogoutView(APIView):
@@ -293,3 +366,342 @@ class SuperAdminLogoutView(APIView):
         return Response({
             'message': 'Logout successful'
         }, status=status.HTTP_205_RESET_CONTENT)
+
+
+class AddCategoryView(APIView):
+    """
+    Brand/Category Management
+    GET: List all categories or get by ID
+    POST: Create a new category/brand
+    PUT: Update existing category or create if not exists
+    DELETE: Delete a category
+    SUPERADMIN ONLY
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def _check_superadmin(self, request):
+        """Check if user is SUPERADMIN"""
+        if getattr(request.user, 'role', None) != 'SUPERADMIN':
+            return False
+        return True
+    
+    def get(self, request, category_id=None):
+        """Get all categories or specific category by ID"""
+        if not self._check_superadmin(request):
+            return Response({
+                'code': '403',
+                'type': 'getCategory',
+                'message': 'Forbidden - Only SUPERADMIN can view categories'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            if category_id:
+                # Get specific category by ID from URL
+                category = Category.objects.get(id=category_id)
+                return Response({
+                    'code': '200',
+                    'type': 'getCategory',
+                    'message': 'Category retrieved successfully',
+                    'data': {
+                        'id': category.id,
+                        'name': category.name,
+                        'icon': request.build_absolute_uri(category.icon.url) if category.icon else None,
+                        'is_active': category.is_active,
+                        'created_at': category.created_at
+                    }
+                }, status=status.HTTP_200_OK)
+            else:
+                # Get all categories
+                categories = Category.objects.all().order_by('-created_at')
+                categories_data = [{
+                    'id': cat.id,
+                    'name': cat.name,
+                    'icon': request.build_absolute_uri(cat.icon.url) if cat.icon else None,
+                    'is_active': cat.is_active,
+                    'created_at': cat.created_at
+                } for cat in categories]
+                
+                return Response({
+                    'code': '200',
+                    'type': 'getCategory',
+                    'message': f'Found {len(categories_data)} categories',
+                    'count': len(categories_data),
+                    'data': categories_data
+                }, status=status.HTTP_200_OK)
+        
+        except Category.DoesNotExist:
+            return Response({
+                'code': '404',
+                'type': 'getCategory',
+                'message': f'Category with ID {category_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            logger.error(f"Error retrieving category: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'getCategory',
+                'message': f'Error retrieving category: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request):
+        """Create a new category/brand"""
+        if not self._check_superadmin(request):
+            return Response({
+                'code': '403',
+                'type': 'addCategory',
+                'message': 'Forbidden - Only SUPERADMIN can add categories'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = AddCategorySerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                category = serializer.save()
+                
+                logger.info(f"[CATEGORY_CREATED] Name: {category.name} | Created by: {request.user.username}")
+                
+                return Response({
+                    'code': '200',
+                    'type': 'addCategory',
+                    'message': 'Category created successfully',
+                    'data': {
+                        'id': category.id,
+                        'name': category.name,
+                        'icon': request.build_absolute_uri(category.icon.url) if category.icon else None,
+                        'is_active': category.is_active,
+                        'created_at': category.created_at
+                    }
+                }, status=status.HTTP_201_CREATED)
+            
+            except Exception as e:
+                logger.error(f"Error creating category: {str(e)}")
+                return Response({
+                    'code': '500',
+                    'type': 'addCategory',
+                    'message': f'Error creating category: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'code': '400',
+            'type': 'addCategory',
+            'message': 'Invalid parameters',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request, category_id=None):
+        """Update existing category - ID in URL"""
+        if not self._check_superadmin(request):
+            return Response({
+                'code': '403',
+                'type': 'updateCategory',
+                'message': 'Forbidden - Only SUPERADMIN can update categories'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        name = request.data.get('name')
+        
+        # ID is required for PUT (update only)
+        if not category_id:
+            return Response({
+                'code': '400',
+                'type': 'updateCategory',
+                'message': 'Category ID is required in URL. Use /add-category/{id}/'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not name:
+            return Response({
+                'code': '400',
+                'type': 'updateCategory',
+                'message': 'Category name is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Get existing category
+            category = Category.objects.get(id=category_id)
+            old_name = category.name
+            
+            # Only check for duplicates if name is being changed
+            if name.lower() != old_name.lower():
+                # Check if new name already exists (for other categories)
+                if Category.objects.filter(name__iexact=name).exclude(id=category_id).exists():
+                    return Response({
+                        'code': '400',
+                        'type': 'updateCategory',
+                        'message': f'Another category with name "{name}" already exists'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Update category
+            category.name = name
+            category.is_active = request.data.get('is_active', category.is_active)
+            
+            if 'icon' in request.FILES:
+                category.icon = request.FILES['icon']
+            
+            category.save()
+            
+            logger.info(f"[CATEGORY_UPDATED] ID: {category_id} | Old Name: {old_name} | New Name: {name} | Updated by: {request.user.username}")
+            
+            return Response({
+                'code': '200',
+                'type': 'updateCategory',
+                'message': 'Category updated successfully',
+                'data': {
+                    'id': category.id,
+                    'name': category.name,
+                    'icon': request.build_absolute_uri(category.icon.url) if category.icon else None,
+                    'is_active': category.is_active,
+                    'created_at': category.created_at
+                }
+            }, status=status.HTTP_200_OK)
+        
+        except Category.DoesNotExist:
+            return Response({
+                'code': '404',
+                'type': 'updateCategory',
+                'message': f'Category with ID {category_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            logger.error(f"Error updating category: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'updateCategory',
+                'message': f'Error updating category: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def delete(self, request, category_id=None):
+        """Delete a category - ID in URL"""
+        if not self._check_superadmin(request):
+            return Response({
+                'code': '403',
+                'type': 'deleteCategory',
+                'message': 'Forbidden - Only SUPERADMIN can delete categories'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # ID is required in URL
+        if not category_id:
+            return Response({
+                'code': '400',
+                'type': 'deleteCategory',
+                'message': 'Category ID is required in URL. Use /add-category/{id}/'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            category = Category.objects.get(id=category_id)
+            category_name = category.name
+            
+            # Check if category is used in any products
+            if ProductInfo.objects.filter(category_id=category_id).exists():
+                return Response({
+                    'code': '409',
+                    'type': 'deleteCategory',
+                    'message': f'Cannot delete category "{category_name}" - it is assigned to {ProductInfo.objects.filter(category_id=category_id).count()} product(s)'
+                }, status=status.HTTP_409_CONFLICT)
+            
+            category.delete()
+            
+            logger.info(f"[CATEGORY_DELETED] ID: {category_id} | Name: {category_name} | Deleted by: {request.user.username}")
+            
+            return Response({
+                'code': '200',
+                'type': 'deleteCategory',
+                'message': f'Category "{category_name}" deleted successfully'
+            }, status=status.HTTP_200_OK)
+        
+        except Category.DoesNotExist:
+            return Response({
+                'code': '404',
+                'type': 'deleteCategory',
+                'message': f'Category with ID {category_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            logger.error(f"Error deleting category: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'deleteCategory',
+                'message': f'Error deleting category: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class AssignBrandToProductView(APIView):
+    """
+    Assign brand/category to a product
+    POST/PUT: Assign brand to product
+    SUPERADMIN ONLY
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Assign brand to product"""
+        # Check if user is SUPERADMIN
+        if getattr(request.user, 'role', None) != 'SUPERADMIN':
+            return Response({
+                'code': '403',
+                'type': 'assignBrandToProduct',
+                'message': 'Forbidden - Only SUPERADMIN can assign brands to products'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        item_code = request.data.get('c_item_code')
+        brand_id = request.data.get('brand_id')
+        
+        if not item_code or not brand_id:
+            return Response({
+                'code': '400',
+                'type': 'assignBrandToProduct',
+                'message': 'c_item_code and brand_id are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Get the item
+            item = ItemMaster.objects.get(item_code=item_code)
+            
+            # Get or create ProductInfo
+            product_info, created = ProductInfo.objects.get_or_create(item=item)
+            
+            # Get the brand/category
+            brand = Category.objects.get(id=brand_id)
+            
+            # Assign brand to product
+            product_info.category = brand
+            product_info.save()
+            
+            logger.info(f"[BRAND_ASSIGNED] Item: {item_code} | Brand: {brand.name} | Brand ID: {brand_id} | Assigned by: {request.user.username}")
+            
+            return Response({
+                'code': '200',
+                'type': 'assignBrandToProduct',
+                'message': 'Brand assigned to product successfully',
+                'data': {
+                    'c_item_code': item_code,
+                    'brand_id': brand.id,
+                    'brand_name': brand.name,
+                    'brand_logo': request.build_absolute_uri(brand.icon.url) if brand.icon else ''
+                }
+            }, status=status.HTTP_200_OK)
+        
+        except ItemMaster.DoesNotExist:
+            return Response({
+                'code': '404',
+                'type': 'assignBrandToProduct',
+                'message': f'Item with code {item_code} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        except Category.DoesNotExist:
+            return Response({
+                'code': '404',
+                'type': 'assignBrandToProduct',
+                'message': f'Brand with ID {brand_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            logger.error(f"Error assigning brand to product: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'assignBrandToProduct',
+                'message': f'Error assigning brand: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def put(self, request):
+        """PUT method - same as POST"""
+        return self.post(request)

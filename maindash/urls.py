@@ -1,4 +1,4 @@
-from django.urls import path
+﻿from django.urls import path
 from . import views
 
 urlpatterns = [
@@ -12,10 +12,7 @@ urlpatterns = [
     path('superadmin/profile/', views.GetSuperAdminProfileView.as_view(), name='superadmin-get-profile'),
     
     # SuperAdmin - Upload Profile Image
-    path('superadmin/profile/image/', views.UploadSuperAdminProfileImageView.as_view(), name='superadmin-upload-profile-image'),
-    
-    # SuperAdmin - Delete Profile Image
-    path('superadmin/profile/image/', views.DeleteSuperAdminProfileImageView.as_view(), name='superadmin-delete-profile-image'),
+    path('superadmin/profile/image/', views.ProfileImageView.as_view(), name='superadmin-profile-image'),
     
     # SuperAdmin - Get all retailers KYC and registration details
     path('superadmin/retailers/', views.SuperAdminGetAllRetailersView.as_view(), name='superadmin-get-all-retailers'),
@@ -28,4 +25,13 @@ urlpatterns = [
     
     # SuperAdmin - Logout
     path('superadmin/logout/', views.SuperAdminLogoutView.as_view(), name='superadmin-logout'),
+    
+    # SuperAdmin - Add Category/Brand
+    path('superadmin/add-category/', views.AddCategoryView.as_view(), name='superadmin-add-category'),
+    path('superadmin/add-category/<int:category_id>/', views.AddCategoryView.as_view(), name='superadmin-add-category-detail'),
+    
+    # SuperAdmin - Assign Brand to Product
+    path('superadmin/assign-brand/', views.AssignBrandToProductView.as_view(), name='superadmin-assign-brand'),
 ]
+
+

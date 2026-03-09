@@ -355,7 +355,7 @@ class ProductInfoForItemMasterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ProductInfo
-        fields = ['subheading', 'description', 'images']
+        fields = ['subheading', 'description', 'type_label', 'images']
 
 
 class ItemMasterSerializer(serializers.ModelSerializer):
@@ -370,11 +370,12 @@ class ItemMasterSerializer(serializers.ModelSerializer):
     # New fields for mobile app
     subheading = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
+    type_label = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
     
     class Meta:
         model = ItemMaster
-        fields = ['c_item_code', 'itemName', 'itemQtyPerBox', 'batchNo', 'std_disc', 'max_disc', 'expiryDate', 'mrp', 'subheading', 'description', 'images']
+        fields = ['c_item_code', 'itemName', 'itemQtyPerBox', 'batchNo', 'std_disc', 'max_disc', 'expiryDate', 'mrp', 'subheading', 'description', 'type_label', 'images']
     
     def get_subheading(self, obj):
         """Get subheading from ProductInfo if exists"""
@@ -387,6 +388,13 @@ class ItemMasterSerializer(serializers.ModelSerializer):
         """Get description from ProductInfo if exists"""
         try:
             return obj.product_info.description or ""
+        except:
+            return ""
+    
+    def get_type_label(self, obj):
+        """Get type_label from ProductInfo if exists"""
+        try:
+            return obj.product_info.type_label or ""
         except:
             return ""
     
@@ -818,16 +826,16 @@ class CreateAddressSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Either locality or flat/building name is required")
         return data
 
-
 # ==================== PRODUCT INFO UPDATE SERIALIZERS ====================
 
 class UpdateProductInfoRequestSerializer(serializers.Serializer):
-    """Serializer for updating product info (subheading, description, and images)
+    """Serializer for updating product info (subheading, description, type_label, and images)
     Authentication: JWT Token (SUPERADMIN only)
     """
     c_item_code = serializers.CharField(required=True, help_text="Item code")
     subheading = serializers.CharField(required=False, allow_blank=True, help_text="Product subheading/subtitle")
     description = serializers.CharField(required=False, allow_blank=True, help_text="Product description")
+    type_label = serializers.CharField(required=False, allow_blank=True, help_text="Product type label (e.g., 'Pain Relief', 'Antibiotic') shown under product name")
     # Image fields - accepts multiple images
     image_1 = serializers.ImageField(required=False, allow_null=True, help_text="Primary product image")
     image_2 = serializers.ImageField(required=False, allow_null=True, help_text="Secondary product image")

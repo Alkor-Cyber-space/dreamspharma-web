@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import CustomUser, KYC, OTP
+from .models import CustomUser, KYC, OTP, Category, ProductInfo, ProductImage
 
 
 @admin.register(CustomUser)
@@ -174,10 +174,10 @@ class ProductInfoAdmin(admin.ModelAdmin):
     inlines = [ProductImageInline]
     fieldsets = (
         ('Product', {
-            'fields': ('item',)
+            'fields': ('item', 'category')
         }),
         ('Details', {
-            'fields': ('subheading', 'description')
+            'fields': ('subheading', 'description', 'type_label')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -201,3 +201,37 @@ class ProductInfoAdmin(admin.ModelAdmin):
         return obj.images.count()
     image_count.short_description = "Images Count"
 
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    """Admin for managing product brands/categories"""
+    list_display = ['name', 'icon_preview', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name']
+    readonly_fields = ['created_at', 'updated_at', 'icon_preview']
+    fieldsets = (
+        ('Brand Information', {
+            'fields': ('name', 'icon')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Preview', {
+            'fields': ('icon_preview',),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def icon_preview(self, obj):
+        """Display brand logo preview"""
+        if obj.icon:
+            return format_html(
+                '<img src="{}" width="100" height="100" style="border-radius: 5px;" />',
+                obj.icon.url
+            )
+        return "No icon uploaded"
+    icon_preview.short_description = "Icon Preview"

@@ -576,3 +576,191 @@ LINE 1: ...em_id", "dreamspharmaapp_productinfo"."brand_id", "dreamspha...
 [INFO] 2026-03-09 10:40:55 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
 [INFO] 2026-03-09 10:41:50 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
 [INFO] 2026-03-09 10:41:52 views get:1134 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 10:46:42 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 10:50:47 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 10:51:15 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 10:51:20 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 10:51:30 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 10:51:48 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 10:55:12 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 11:02:41 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 11:02:54 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 11:03:38 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 11:03:53 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 11:04:10 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[ERROR] 2026-03-09 11:04:23 apps ready:66 - Failed to start APScheduler: cannot import name 'cleanup_tokens_job' from 'dreamspharmaapp.jobs' (C:\Users\soorya\Desktop\Dreampharma\dreamspharma\dreamspharma\dreamspharmaapp\jobs.py)
+[INFO] 2026-03-09 11:04:36 apps ready:62 - [OK] APScheduler started - Running:
+[INFO] 2026-03-09 11:04:44 apps ready:62 - [OK] APScheduler started - Running:
+[INFO] 2026-03-09 11:05:21 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 11:20:21 jobs sync_itemmaster_job:19 - [2026-03-09 05:50:21.233758+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 11:20:23 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 11:20:23 jobs sync_itemmaster_job:21 - [2026-03-09 05:50:23.589573+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-09 11:35:21 jobs sync_itemmaster_job:19 - [2026-03-09 06:05:21.243319+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 11:35:23 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 11:35:23 jobs sync_itemmaster_job:21 - [2026-03-09 06:05:23.391861+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-09 11:50:21 jobs sync_itemmaster_job:19 - [2026-03-09 06:20:21.296593+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 11:50:23 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 11:50:23 jobs sync_itemmaster_job:21 - [2026-03-09 06:20:23.522234+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-09 12:05:21 jobs sync_itemmaster_job:19 - [2026-03-09 06:35:21.325264+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 12:05:23 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 12:05:23 jobs sync_itemmaster_job:21 - [2026-03-09 06:35:23.595720+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-09 12:20:21 jobs sync_itemmaster_job:19 - [2026-03-09 06:50:21.270372+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 12:20:23 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 12:20:23 jobs sync_itemmaster_job:21 - [2026-03-09 06:50:23.494657+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-09 12:50:21 jobs sync_itemmaster_job:19 - [2026-03-09 07:20:21.256567+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 12:50:23 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 12:50:23 jobs sync_itemmaster_job:21 - [2026-03-09 07:20:23.531053+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-09 13:05:21 jobs sync_itemmaster_job:19 - [2026-03-09 07:35:21.277830+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 13:05:23 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 13:05:23 jobs sync_itemmaster_job:21 - [2026-03-09 07:35:23.500081+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-09 13:42:29 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 13:54:12 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:00:51 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:02:01 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:02:12 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:02:43 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:09:40 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:10:24 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:18:57 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:33:24 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
+[INFO] 2026-03-09 14:33:27 views get:1134 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 14:33:57 jobs sync_itemmaster_job:19 - [2026-03-09 09:03:57.550823+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 14:33:59 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 14:33:59 jobs sync_itemmaster_job:21 - [2026-03-09 09:03:59.762611+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-09 14:40:38 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:40:47 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:41:24 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 14:41:44 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
+[INFO] 2026-03-09 14:41:46 views get:1134 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 14:51:41 views post:1209 - [PRODUCT_INFO_UPDATED] Item: I00049 | Subheading: Liquid medicinal suspension | Description: Effective pain reliever and fever reducer | Updated by: admin
+[INFO] 2026-03-09 14:51:41 views post:1243 - [PRODUCT_IMAGE_CREATED] Item: I00049 | Order: 1 | Created by: admin
+[INFO] 2026-03-09 14:51:41 views post:1243 - [PRODUCT_IMAGE_CREATED] Item: I00049 | Order: 2 | Created by: admin
+[INFO] 2026-03-09 14:51:41 views post:1243 - [PRODUCT_IMAGE_CREATED] Item: I00049 | Order: 3 | Created by: admin
+[INFO] 2026-03-09 14:52:00 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
+[INFO] 2026-03-09 14:52:02 views get:1134 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 14:56:24 jobs sync_itemmaster_job:19 - [2026-03-09 09:26:24.831965+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 14:56:27 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 14:56:27 jobs sync_itemmaster_job:21 - [2026-03-09 09:26:27.470983+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-09 15:01:11 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:01:28 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:03:41 views post:1211 - [PRODUCT_INFO_UPDATED] Item: I00049 | Subheading: Liquid medicinal suspension | Description: Effective pain reliever and fever reducer | Type Label: Pain Relief | Updated by: admin
+[INFO] 2026-03-09 15:03:41 views post:1233 - [PRODUCT_IMAGE_UPDATED] Item: I00049 | Order: 1 | Updated by: admin
+[INFO] 2026-03-09 15:03:41 views post:1233 - [PRODUCT_IMAGE_UPDATED] Item: I00049 | Order: 2 | Updated by: admin
+[INFO] 2026-03-09 15:03:41 views post:1233 - [PRODUCT_IMAGE_UPDATED] Item: I00049 | Order: 3 | Updated by: admin
+[INFO] 2026-03-09 15:04:02 views post:1211 - [PRODUCT_INFO_UPDATED] Item: 648538 | Subheading: Liquid medicinal suspension | Description: Effective pain reliever and fever reducer | Type Label: Pain Relief | Updated by: admin
+[INFO] 2026-03-09 15:04:02 views post:1245 - [PRODUCT_IMAGE_CREATED] Item: 648538 | Order: 1 | Created by: admin
+[INFO] 2026-03-09 15:04:02 views post:1245 - [PRODUCT_IMAGE_CREATED] Item: 648538 | Order: 2 | Created by: admin
+[INFO] 2026-03-09 15:04:02 views post:1245 - [PRODUCT_IMAGE_CREATED] Item: 648538 | Order: 3 | Created by: admin
+[INFO] 2026-03-09 15:04:26 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
+[INFO] 2026-03-09 15:04:28 views get:1134 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 15:06:50 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:07:01 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:07:06 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
+[INFO] 2026-03-09 15:07:09 views get:1134 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 15:08:16 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:08:21 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:08:42 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:08:46 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
+[INFO] 2026-03-09 15:08:48 views get:1136 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 15:09:06 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
+[INFO] 2026-03-09 15:09:08 views get:1136 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 15:10:23 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:10:27 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:11:29 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:11:34 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:11:47 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:11:51 views post:1213 - [PRODUCT_INFO_UPDATED] Item: 648538 | Subheading: Liquid medicinal suspension | Description: Effective pain reliever and fever reducer | Type Label: Pain Relief | Updated by: admin
+[INFO] 2026-03-09 15:11:51 views post:1235 - [PRODUCT_IMAGE_UPDATED] Item: 648538 | Order: 1 | Updated by: admin
+[INFO] 2026-03-09 15:11:51 views post:1235 - [PRODUCT_IMAGE_UPDATED] Item: 648538 | Order: 2 | Updated by: admin
+[INFO] 2026-03-09 15:11:51 views post:1235 - [PRODUCT_IMAGE_UPDATED] Item: 648538 | Order: 3 | Updated by: admin
+[INFO] 2026-03-09 15:12:05 views post:1213 - [PRODUCT_INFO_UPDATED] Item: 648538 | Subheading: Liquid medicinal suspension | Description: Effective pain reliever and fever reducer | Type Label: Pain Relief | Updated by: admin
+[INFO] 2026-03-09 15:12:05 views post:1235 - [PRODUCT_IMAGE_UPDATED] Item: 648538 | Order: 1 | Updated by: admin
+[INFO] 2026-03-09 15:12:05 views post:1235 - [PRODUCT_IMAGE_UPDATED] Item: 648538 | Order: 2 | Updated by: admin
+[INFO] 2026-03-09 15:12:06 views post:1235 - [PRODUCT_IMAGE_UPDATED] Item: 648538 | Order: 3 | Updated by: admin
+[INFO] 2026-03-09 15:13:13 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:13:22 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:17:59 views post:1213 - [PRODUCT_INFO_UPDATED] Item: 648538 | Subheading: Liquid medicinal suspension | Description: Effective pain reliever and fever reducer | Type Label: Pain Relief | Updated by: admin
+[INFO] 2026-03-09 15:17:59 views post:1237 - [PRODUCT_IMAGE_UPDATED] Item: 648538 | Order: 1 | Updated by: admin
+[INFO] 2026-03-09 15:17:59 views post:1237 - [PRODUCT_IMAGE_UPDATED] Item: 648538 | Order: 2 | Updated by: admin
+[INFO] 2026-03-09 15:17:59 views post:1237 - [PRODUCT_IMAGE_UPDATED] Item: 648538 | Order: 3 | Updated by: admin
+[INFO] 2026-03-09 15:23:40 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:23:52 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:23:58 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:28:07 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:28:28 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:39:13 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:39:18 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:39:32 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:47:03 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:47:13 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:47:31 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:47:43 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:47:55 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:53:52 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:54:02 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:54:20 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:54:32 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:55:13 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:55:26 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:57:00 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:57:06 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:57:12 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:57:17 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:58:14 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:59:39 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 15:59:59 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:00:05 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:00:17 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:00:25 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:00:37 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:00:44 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:02:00 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:05:59 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:11:13 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:11:21 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:11:35 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:12:11 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:12:27 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:27:28 jobs sync_itemmaster_job:19 - [2026-03-09 10:57:28.001084+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 16:27:30 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 16:27:30 jobs sync_itemmaster_job:21 - [2026-03-09 10:57:30.340624+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-09 16:32:43 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
+[INFO] 2026-03-09 16:32:45 views get:1142 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 16:33:53 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
+[INFO] 2026-03-09 16:33:55 views get:1142 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 16:34:08 views get:1090 - [GET_ITEM_MASTER] Fetching from ERP: http://localhost:44000/ws_c2_services_get_master_data
+[INFO] 2026-03-09 16:34:11 views get:1142 - [GET_ITEM_MASTER] Fetched 6 items from ERP server with product enhancements
+[INFO] 2026-03-09 16:39:13 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:40:06 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:41:22 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:42:38 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:43:55 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:46:06 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:46:20 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:46:38 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:46:52 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 16:47:36 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:02:06 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:02:32 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:03:23 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:03:39 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:06:54 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:08:12 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:11:33 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:12:37 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:18:51 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:19:46 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:23:45 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:24:39 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:26:47 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:32:03 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:32:17 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:33:14 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:33:28 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:33:42 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:34:37 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:37:05 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:38:05 apps ready:49 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-09 17:53:06 jobs sync_itemmaster_job:19 - [2026-03-09 12:23:06.054145+00:00] Starting sync_itemmaster job...
+[INFO] 2026-03-09 17:53:08 sync_itemmaster handle:86 - ItemMaster sync result: Created: 0, Updated: 6, Errors: 0
+[INFO] 2026-03-09 17:53:08 jobs sync_itemmaster_job:21 - [2026-03-09 12:23:08.975978+00:00] sync_itemmaster job completed successfully

@@ -20,7 +20,7 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
-from .models import CustomUser, KYC, OTP, APIToken, ItemMaster, Stock, GLCustomer, SalesOrder, SalesOrderItem, Invoice, InvoiceDetail, Cart, CartItem, Wishlist, WishlistItem, ProductInfo, ProductImage, Address
+from .models import CustomUser, KYC, OTP, APIToken, ItemMaster, Stock, GLCustomer, SalesOrder, SalesOrderItem, Invoice, InvoiceDetail, Cart, CartItem, Wishlist, WishlistItem, ProductInfo, ProductImage, Address, Category
 from .serializers import (
     CustomUserSerializer, UserRegistrationSerializer, KYCSerializer, 
     KYCSubmitSerializer, SuperAdminLoginSerializer, RetailerLoginSerializer,
@@ -1114,6 +1114,10 @@ class GetItemMasterView(APIView):
                         # Add enriched data
                         item['subheading'] = product_info.subheading
                         item['description'] = product_info.description
+                        item['type_label'] = product_info.type_label
+                        item['brand_id'] = product_info.category.id if product_info.category else None
+                        item['brand_name'] = product_info.category.name if product_info.category else ''
+                        item['brand_logo'] = request.build_absolute_uri(product_info.category.icon.url) if product_info.category and product_info.category.icon else ''
                         
                         # Add images
                         images = ProductImage.objects.filter(product_info=product_info).order_by('image_order')
@@ -1129,6 +1133,10 @@ class GetItemMasterView(APIView):
                         # That's okay - SUPERADMIN can add product info later
                         item['subheading'] = ''
                         item['description'] = ''
+                        item['type_label'] = ''
+                        item['brand_id'] = None
+                        item['brand_name'] = ''
+                        item['brand_logo'] = ''
                         item['images'] = []
                 
                 logger.info(f"[GET_ITEM_MASTER] Fetched {len(items)} items from ERP server with product enhancements")
@@ -1164,7 +1172,7 @@ class GetItemMasterView(APIView):
 class UpdateProductInfoView(APIView):
     """
     Update product information (subheading, description, and images)
-    POST: Update product info and upload images for an item
+    POST/PUT: Update product info and upload images for an item
     SUPERADMIN ONLY - Add product details through mobile app
     """
     permission_classes = [IsAuthenticated]
@@ -1183,6 +1191,7 @@ class UpdateProductInfoView(APIView):
             item_code = serializer.validated_data['c_item_code']
             subheading = serializer.validated_data.get('subheading', '')
             description = serializer.validated_data.get('description', '')
+            type_label = serializer.validated_data.get('type_label', '')
             
             # Get images if provided
             images = {
@@ -1203,10 +1212,11 @@ class UpdateProductInfoView(APIView):
                 # Update ProductInfo fields
                 product_info.subheading = subheading
                 product_info.description = description
+                product_info.type_label = type_label
                 product_info.save()
                 
                 # Audit log
-                logger.info(f"[PRODUCT_INFO_UPDATED] Item: {item_code} | Subheading: {subheading} | Description: {description} | Updated by: {request.user.username}")
+                logger.info(f"[PRODUCT_INFO_UPDATED] Item: {item_code} | Subheading: {subheading} | Description: {description} | Type Label: {type_label} | Updated by: {request.user.username}")
                 
                 # Handle image uploads
                 uploaded_images = []
@@ -1224,21 +1234,25 @@ class UpdateProductInfoView(APIView):
                                 # Update existing image
                                 existing_image.image = image_file
                                 existing_image.save()
+                                image_url = request.build_absolute_uri(existing_image.image.url)
                                 uploaded_images.append({
                                     'image_order': image_order,
-                                    'status': 'updated'
+                                    'status': 'updated',
+                                    'image': image_url
                                 })
                                 logger.info(f"[PRODUCT_IMAGE_UPDATED] Item: {item_code} | Order: {image_order} | Updated by: {request.user.username}")
                             else:
                                 # Create new image
-                                ProductImage.objects.create(
+                                product_image = ProductImage.objects.create(
                                     product_info=product_info,
                                     image=image_file,
                                     image_order=image_order
                                 )
+                                image_url = request.build_absolute_uri(product_image.image.url)
                                 uploaded_images.append({
                                     'image_order': image_order,
-                                    'status': 'uploaded'
+                                    'status': 'uploaded',
+                                    'image': image_url
                                 })
                                 logger.info(f"[PRODUCT_IMAGE_CREATED] Item: {item_code} | Order: {image_order} | Created by: {request.user.username}")
                         except Exception as img_error:
@@ -1257,6 +1271,10 @@ class UpdateProductInfoView(APIView):
                         'c_item_code': item_code,
                         'subheading': product_info.subheading,
                         'description': product_info.description,
+                        'type_label': product_info.type_label,
+                        'brand_id': product_info.category.id if product_info.category else None,
+                        'brand_name': product_info.category.name if product_info.category else '',
+                        'brand_logo': request.build_absolute_uri(product_info.category.icon.url) if product_info.category and product_info.category.icon else '',
                         'images': uploaded_images
                     }
                 }, status=status.HTTP_200_OK)
@@ -1281,12 +1299,19 @@ class UpdateProductInfoView(APIView):
             'message': 'Invalid parameters',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request):
+        """PUT method - same as POST for updating product information"""
+        return self.post(request)
+
+
+
 
 
 class UploadProductImageView(APIView):
     """
     Upload product images
-    POST: Upload image for a product
+    POST/PUT: Upload image for a product
     SUPERADMIN ONLY - Add product images through mobile app
     """
     permission_classes = [IsAuthenticated]
@@ -1366,6 +1391,10 @@ class UploadProductImageView(APIView):
             'message': 'Invalid parameters',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request):
+        """PUT method - same as POST for uploading product images"""
+        return self.post(request)
 
 
 class FetchStockView(APIView):

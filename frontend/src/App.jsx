@@ -9,6 +9,7 @@ import Retailers from "./pages/Retailers";
 import Refunds from "./pages/Refunds";
 import Reports from "./pages/Reports";
 import Products from "./pages/Products";
+import Profile from "./pages/Profile";
 
 function App() {
   return (
@@ -31,7 +32,7 @@ function App() {
           <Route path="retailers" element={<Retailers />} />
           <Route path="products" element={<Products />} />
           <Route path="reports" element={<Reports />} />
-          {/* <Route path="settings" element={<Settings />} /> */}
+          <Route path="Profile" element={<Profile />} />
         </Route>
       </Routes>
     </BrowserRouter>

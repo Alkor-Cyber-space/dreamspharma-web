@@ -320,7 +320,7 @@ export default function RetailerKYCPage() {
   const statusOptions = ["All", "APPROVED", "PENDING", "REJECTED"];
 
   return (
-    <div className="h-full overflow-hidden flex flex-col ml-5 mt-5 ">
+    <div className="h-full overflow-hidden flex flex-col ml-5 mt-5 border-l-2 border-gray-100">
 
       <RetailerModal
         retailer={selectedRetailer}
@@ -348,7 +348,7 @@ export default function RetailerKYCPage() {
             placeholder="Search by shop name or owner..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-transparent border-none outline-none px-3 text-sm text-[#505050] placeholder:text-[#9EA2A7]"
+            className="w-full pl-9 pr-4 py-1  border-none rounded-lg outline-none text-sm transition-all"
           />
 
           <div className="relative z-20">
@@ -395,7 +395,7 @@ export default function RetailerKYCPage() {
         <div className="h-full overflow-y-auto">
           <div className="w-full overflow-x-auto">
             <table className="min-w-[900px] w-full text-left">
-              <thead className="bg-[#DCE4EA] text-gray-600 text-xs uppercase tracking-wide sticky top-0 z-10">
+              <thead className="bg-[#1276901A] text-gray-600 text-xs uppercase tracking-wide sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-4">Retailer ID</th>
                   <th className="px-6">Shop Name</th>

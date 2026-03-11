@@ -26,7 +26,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { name: "Reports", path: "/reports", icon: FileBarChart2 },
     { name: "Offers & Banners", path: "/offers", icon: Tag },
     { name: "Audit Logs", path: "/audit", icon: FileText },
-    { name: "Settings", path: "/settings", icon: Settings },
+    { name: "Profile Settings", path: "/Profile", icon: Settings },
   ];
 
   return (

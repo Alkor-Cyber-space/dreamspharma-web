@@ -87,6 +87,28 @@ ITEMS = [
         "max_disc": 2.00,
         "expiryDate": "2029-07-01",
         "mrp": 170.00
+    },
+    {
+        "c_item_code": "I00099",
+        "itemName": "AMOXICILLIN 500MG - OUT OF STOCK",
+        "itemQtyPerBox": 10,
+        "batchNo": "AMX001",
+        "stockBalQty": 0,
+        "std_disc": 20.00,
+        "max_disc": 5.00,
+        "expiryDate": "2027-06-30",
+        "mrp": 45.50
+    },
+    {
+        "c_item_code": "I00077",
+        "itemName": "IBUPROFEN 400MG - EXPIRED",
+        "itemQtyPerBox": 10,
+        "batchNo": "IBU001",
+        "stockBalQty": 500,
+        "std_disc": 15.00,
+        "max_disc": 3.00,
+        "expiryDate": "2025-01-15",
+        "mrp": 12.50
     }
 ]
 
@@ -157,6 +179,28 @@ STOCK = [
         "packQty": 150,
         "looseQty": 0,
         "lastModifiedDateTime": "2029-07-01 10:00:00.000"
+    },
+    {
+        "itemCode": "I00099",
+        "itemName": "AMOXICILLIN 500MG - OUT OF STOCK",
+        "contCode": "-",
+        "contName": "-",
+        "qtyBox": 10,
+        "totalBalLsQty": 0,
+        "packQty": 0,
+        "looseQty": 0,
+        "lastModifiedDateTime": "2026-03-10 10:00:00.000"
+    },
+    {
+        "itemCode": "I00077",
+        "itemName": "IBUPROFEN 400MG - EXPIRED",
+        "contCode": "-",
+        "contName": "-",
+        "qtyBox": 10,
+        "totalBalLsQty": 500,
+        "packQty": 50,
+        "looseQty": 0,
+        "lastModifiedDateTime": "2025-01-15 10:00:00.000"
     }
 ]
 

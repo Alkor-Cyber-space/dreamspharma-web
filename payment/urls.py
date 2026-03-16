@@ -14,6 +14,10 @@ urlpatterns = [
     # Refund Management
     path('refund/', views.InitiateRefundView.as_view(), name='initiate-refund'),
     
+    # Cash on Delivery (COD) Payment
+    path('cod/initiate/', views.InitiateCODPaymentView.as_view(), name='initiate-cod'),
+    path('cod/confirm/', views.ConfirmCODPaymentView.as_view(), name='confirm-cod'),
+    
     # Webhook
     path('webhook/', views.WebhookView.as_view(), name='razorpay-webhook'),
 ]

@@ -14,7 +14,7 @@ class DreamspharmaappConfig(AppConfig):
     name = 'dreamspharmaapp'
     
     def ready(self):
-        """Start APScheduler when app is ready"""
+        """Start APScheduler and initialize ERP token when app is ready"""
         global _scheduler_started
         
         # Skip if already started in this process
@@ -25,6 +25,14 @@ class DreamspharmaappConfig(AppConfig):
         # This prevents duplicate schedulers in multi-process environments
         if os.environ.get('RUN_MAIN') != 'true':
             return
+        
+        # ==================== INITIALIZE ERP TOKEN ====================
+        try:
+            logger.info('[ERP_TOKEN] Initializing ERP token on app startup...')
+            from .erp_token_service import initialize_erp_token
+            initialize_erp_token()
+        except Exception as e:
+            logger.error(f'[ERP_TOKEN] Error initializing token: {str(e)}')
             
         try:
             from apscheduler.schedulers.background import BackgroundScheduler
@@ -32,9 +40,11 @@ class DreamspharmaappConfig(AppConfig):
             from apscheduler.events import EVENT_JOB_EXECUTED
             from django_apscheduler.jobstores import DjangoJobStore
             from django_apscheduler.util import close_old_connections
-            from .jobs import sync_itemmaster_job
+            from .jobs import sync_itemmaster_job, refresh_erp_token_job
             
             scheduler = BackgroundScheduler(jobstore=DjangoJobStore())
+            
+            # Job 1: Sync ItemMaster Cache every 15 minutes
             scheduler.add_job(
                 sync_itemmaster_job,
                 trigger=IntervalTrigger(minutes=15),
@@ -43,9 +53,24 @@ class DreamspharmaappConfig(AppConfig):
                 replace_existing=True,
                 max_instances=1  # Ensure only one instance of this job runs at a time
             )
+            
+            # Job 2: Refresh ERP token every 23 hours (before 24-hour expiry)
+            from django.conf import settings
+            token_refresh_hours = getattr(settings, 'ERP_TOKEN_REFRESH_HOURS', 23)
+            scheduler.add_job(
+                refresh_erp_token_job,
+                trigger=IntervalTrigger(hours=token_refresh_hours),
+                id='refresh_erp_token',
+                name='Refresh ERP Token',
+                replace_existing=True,
+                max_instances=1
+            )
+            
             scheduler.add_listener(close_old_connections, EVENT_JOB_EXECUTED)
             scheduler.start()
             _scheduler_started = True
-            logger.info('[OK] APScheduler started - sync_itemmaster will run every 15 minutes')
+            logger.info('[OK] APScheduler started - Jobs scheduled:')
+            logger.info(f'  [OK] sync_itemmaster: every 15 minutes')
+            logger.info(f'  [OK] refresh_erp_token: every {token_refresh_hours} hours')
         except Exception as e:
             logger.error(f'Failed to start APScheduler: {str(e)}')

@@ -1,4 +1,4 @@
-﻿from django.urls import path
+from django.urls import path
 from . import views
 
 urlpatterns = [
@@ -11,7 +11,7 @@ urlpatterns = [
     # SuperAdmin - Get Profile Information
     path('superadmin/profile/', views.GetSuperAdminProfileView.as_view(), name='superadmin-get-profile'),
     
-    # SuperAdmin - Upload Profile Image
+    # SuperAdmin - Profile Image (Upload/Delete)
     path('superadmin/profile/image/', views.ProfileImageView.as_view(), name='superadmin-profile-image'),
     
     # SuperAdmin - Get all retailers KYC and registration details
@@ -33,5 +33,4 @@ urlpatterns = [
     # SuperAdmin - Assign Brand to Product
     path('superadmin/assign-brand/', views.AssignBrandToProductView.as_view(), name='superadmin-assign-brand'),
 ]
-
-
+   

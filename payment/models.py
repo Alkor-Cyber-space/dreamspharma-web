@@ -23,6 +23,7 @@ class Payment(models.Model):
         ('NETBANKING', 'Net Banking'),
         ('WALLET', 'Wallet'),
         ('UPI', 'UPI'),
+        ('COD', 'Cash on Delivery'),
     )
     
     # Identifiers
@@ -66,6 +67,11 @@ class Payment(models.Model):
     settlement_date = models.DateTimeField(blank=True, null=True, help_text="Payment settlement date")
     is_settled = models.BooleanField(default=False, help_text="Is payment settled in merchant account")
     
+    # COD Specific
+    cod_collected = models.BooleanField(default=False, help_text="For COD orders, marks if cash has been collected")
+    cod_collected_at = models.DateTimeField(blank=True, null=True, help_text="Timestamp when COD payment was collected")
+    cod_collected_by = models.CharField(max_length=255, blank=True, null=True, help_text="Name/ID of person who collected COD")
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -82,6 +88,8 @@ class Payment(models.Model):
             models.Index(fields=['merchant_reference_id']),
             models.Index(fields=['status', '-created_at']),
             models.Index(fields=['is_settled', '-settlement_date']),
+            models.Index(fields=['payment_method', 'status']),
+            models.Index(fields=['cod_collected', '-cod_collected_at']),
         ]
     
     def __str__(self):

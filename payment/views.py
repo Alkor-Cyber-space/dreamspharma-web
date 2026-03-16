@@ -512,3 +512,177 @@ class WebhookView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class InitiateCODPaymentView(APIView):
+    """Initiate Cash on Delivery payment for an order"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Create COD payment record"""
+        try:
+            order_id = request.data.get('order_id')
+            if not order_id:
+                return Response(
+                    {'error': 'order_id is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            sales_order = get_object_or_404(SalesOrder, order_id=order_id)
+            
+            # Check for existing successful payment
+            existing_payment = Payment.objects.filter(
+                sales_order=sales_order,
+                status='SUCCESS'
+            ).first()
+            
+            if existing_payment:
+                return Response(
+                    {'error': 'Payment already completed for this order'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check for existing COD payment
+            existing_cod = Payment.objects.filter(
+                sales_order=sales_order,
+                payment_method='COD',
+                status__in=['INITIATED', 'PENDING']
+            ).first()
+            
+            if existing_cod:
+                return Response(
+                    {'error': 'COD payment already initiated for this order'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            merchant_ref_id = f"COD-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+            
+            # Create COD payment record
+            with transaction.atomic():
+                payment = Payment.objects.create(
+                    user=request.user,
+                    sales_order=sales_order,
+                    amount=sales_order.order_total,
+                    payment_method='COD',
+                    status='PENDING',  # COD starts as PENDING (awaiting delivery)
+                    customer_name=sales_order.patient_name,
+                    customer_email=sales_order.patient_email,
+                    customer_phone=sales_order.mobile_no,
+                    customer_address=sales_order.patient_address,
+                    customer_ip=get_client_ip(request),
+                    customer_user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                    merchant_reference_id=merchant_ref_id,
+                    retry_count=1
+                )
+                
+                # Log the COD initiation
+                PaymentLog.objects.create(
+                    payment=payment,
+                    operation='CREATE_ORDER',
+                    request_data={'order_id': order_id, 'payment_method': 'COD'},
+                    response_data={'status': 'COD_INITIATED', 'merchant_ref_id': merchant_ref_id},
+                    response_status_code=201,
+                    success=True
+                )
+                
+                logger.info(f"[COD_INITIATED] Order {order_id} - Merchant Ref: {merchant_ref_id} - Amount: ₹{sales_order.order_total}")
+                
+                return Response({
+                    'success': True,
+                    'payment_id': str(payment.payment_id),
+                    'order_id': sales_order.order_id,
+                    'payment_method': 'COD',
+                    'amount': float(payment.amount),
+                    'currency': payment.currency,
+                    'customer_name': payment.customer_name,
+                    'customer_phone': payment.customer_phone,
+                    'status': 'PENDING',
+                    'message': 'COD payment initiated. Payment will be collected at delivery.'
+                }, status=status.HTTP_201_CREATED)
+        
+        except Exception as e:
+            logger.error(f"[COD_ERROR] Error initiating COD: {str(e)}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ConfirmCODPaymentView(APIView):
+    """Confirm COD payment collection (called after delivery)"""
+    permission_classes = [IsAuthenticated]
+    
+    @transaction.atomic
+    def post(self, request):
+        """Mark COD payment as collected"""
+        try:
+            payment_id = request.data.get('payment_id')
+            collected_by = request.data.get('collected_by', 'Delivery Agent')
+            
+            if not payment_id:
+                return Response(
+                    {'error': 'payment_id is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get payment record
+            payment = get_object_or_404(
+                Payment,
+                payment_id=payment_id,
+                user=request.user,
+                payment_method='COD'
+            )
+            
+            if payment.status == 'SUCCESS':
+                return Response(
+                    {'error': 'Payment already confirmed'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if payment.status not in ['PENDING', 'INITIATED']:
+                return Response(
+                    {'error': f'Cannot confirm payment with status: {payment.status}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Update payment status
+            payment.status = 'SUCCESS'
+            payment.cod_collected = True
+            payment.cod_collected_at = timezone.now()
+            payment.cod_collected_by = collected_by
+            payment.payment_completed_at = timezone.now()
+            payment.save()
+            
+            # Log the payment confirmation
+            PaymentLog.objects.create(
+                payment=payment,
+                operation='VERIFY_PAYMENT',
+                request_data={'collected_by': collected_by},
+                response_data={'status': 'COD_CONFIRMED'},
+                response_status_code=200,
+                success=True
+            )
+            
+            logger.info(f"[COD_COLLECTED] Payment {payment.payment_id} - Amount: ₹{payment.amount} - Collected by: {collected_by}")
+            
+            return Response({
+                'success': True,
+                'message': 'COD payment collected successfully',
+                'payment_id': str(payment.payment_id),
+                'order_id': payment.sales_order.order_id,
+                'amount': float(payment.amount),
+                'collected_at': payment.cod_collected_at.isoformat(),
+                'collected_by': payment.cod_collected_by
+            }, status=status.HTTP_200_OK)
+        
+        except Payment.DoesNotExist:
+            return Response(
+                {'error': 'Payment record not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"[COD_CONFIRM_ERROR] Error confirming COD: {str(e)}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

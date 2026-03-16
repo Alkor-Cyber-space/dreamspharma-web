@@ -35,7 +35,7 @@ class CustomUser(AbstractUser):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=models.Q(email__isnull=False) | models.Q(phone_number__isnull=False),
+                condition=models.Q(email__isnull=False) | models.Q(phone_number__isnull=False),
                 name='email_or_phone_required'
             )
         ]
@@ -314,8 +314,8 @@ class Address(models.Model):
     is_active = models.BooleanField(default=True)
     
     # GPS Coordinates
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True, help_text='Latitude from GPS/map')
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True, help_text='Longitude from GPS/map')
+    latitude = models.FloatField(blank=True, null=True, help_text='Latitude from GPS/map')
+    longitude = models.FloatField(blank=True, null=True, help_text='Longitude from GPS/map')
     location_accuracy = models.IntegerField(blank=True, null=True, help_text='GPS accuracy in meters')
     is_gps_verified = models.BooleanField(default=False, help_text='Address confirmed via GPS coordinates')
     
@@ -573,9 +573,41 @@ class WishlistItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    def get_discount_percentage(self):
+        """Get discount percentage for this item"""
+        return float(self.item.std_disc)
+    
+    def get_discounted_price(self):
+        """Calculate price per unit after discount"""
+        mrp = float(self.item.mrp)
+        discount = float(self.item.std_disc)
+        discounted_price = mrp * (1 - discount / 100)
+        return round(discounted_price, 2)
+    
     class Meta:
         unique_together = ('wishlist', 'item')
         ordering = ['-created_at']
     
     def __str__(self):
         return f"{self.item.item_name} x {self.quantity} (Wishlist: {self.wishlist.user.username})"
+
+
+class SearchHistory(models.Model):
+    """Track search queries for popular search feature"""
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True, blank=True, related_name='search_history')
+    query = models.CharField(max_length=255, db_index=True)  # Search keyword
+    search_count = models.PositiveIntegerField(default=1)  # How many times searched
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ('query',)  # Each query is unique
+        ordering = ['-search_count', '-updated_at']  # Order by popularity
+        verbose_name_plural = "Search Histories"
+        indexes = [
+            models.Index(fields=['-search_count']),
+            models.Index(fields=['-updated_at']),
+        ]
+    
+    def __str__(self):
+        return f"Search: '{self.query}' ({self.search_count} times)"

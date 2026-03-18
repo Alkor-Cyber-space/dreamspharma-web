@@ -17,10 +17,11 @@ import requests
 from datetime import datetime
 import logging
 import uuid
+import json
 
 logger = logging.getLogger(__name__)
 
-from .models import CustomUser, KYC, OTP, APIToken, ItemMaster, Stock, GLCustomer, SalesOrder, SalesOrderItem, Invoice, InvoiceDetail, Cart, CartItem, Wishlist, WishlistItem, Brand, ProductInfo, Address
+from .models import CustomUser, KYC, OTP, APIToken, ItemMaster, Stock, GLCustomer, SalesOrder, SalesOrderItem, Invoice, InvoiceDetail, Cart, CartItem, Wishlist, WishlistItem, ProductInfo, ProductImage, Address, Category
 from .serializers import (
     CustomUserSerializer, UserRegistrationSerializer, KYCSerializer, 
     KYCSubmitSerializer, SuperAdminLoginSerializer, RetailerLoginSerializer,
@@ -31,10 +32,13 @@ from .serializers import (
     CreateGLCustomerRequestSerializer, CreateGLCustomerResponseSerializer,
     OrderStatusResponseSerializer, InvoiceForStatusSerializer,
     CartSerializer, CartItemSerializer, AddToCartSerializer, UpdateCartItemSerializer,
+    CartItemSmallSerializer,
     WishlistSerializer, WishlistItemSerializer, AddToWishlistSerializer, MoveToCartSerializer,
-    BrandSerializer, ProductListSerializer, AddressListSerializer, CreateAddressSerializer,
+    ProductListSerializer, AddressListSerializer, CreateAddressSerializer,
     SelectAddressSerializer, DetectLocationSerializer, LocationAddressResponseSerializer,
-    ConfirmLocationAddressSerializer
+    ConfirmLocationAddressSerializer, UpdateProductInfoRequestSerializer, UploadProductImageRequestSerializer,
+    ProductRecommendationSerializer, SimilarProductsResponseSerializer, 
+    FrequentlyBoughtTogetherResponseSerializer, TopSellingResponseSerializer
 )
 from .geocoding import reverse_geocode, GeocodingException, validate_coordinates
 
@@ -1014,149 +1018,519 @@ class TokenRefreshView(APIView):
 
 class GenerateTokenView(APIView):
     """
-    Generate API token for ERP integration
-    POST: Generate and return API token
+    ⚠️ DEPRECATED - Use auto-generated token instead!
+    
+    This endpoint is NO LONGER NEEDED
+    Tokens are now automatically generated and cached in the background
+    
+    All ERP endpoints now use auto-generated tokens transparently
     """
     permission_classes = [AllowAny]
     
     def post(self, request):
-        serializer = GenerateTokenRequestSerializer(data=request.data)
-        if serializer.is_valid():
-            c2_code = serializer.validated_data['c2Code']
-            store_id = serializer.validated_data['storeId']
-            prod_code = serializer.validated_data.get('prodCode', '02')
-            security_key = serializer.validated_data['securityKey']
-            
-            try:
-                # Get or create API token
-                api_token, created = APIToken.objects.get_or_create(
-                    c2_code=c2_code,
-                    defaults={
-                        'store_id': store_id,
-                        'prod_code': prod_code,
-                        'security_key': security_key,
-                        'api_key': base64.b64encode(f"{c2_code}^{timezone.now()}".encode()).decode()
-                    }
-                )
-                
-                response_data = {
-                    'code': '200',
-                    'type': 'generateToken',
-                    'apiKey': api_token.api_key
-                }
-                return Response(response_data, status=status.HTTP_200_OK)
-            except Exception as e:
-                return Response({
-                    'code': '500',
-                    'type': 'generateToken',
-                    'message': str(e)
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
         return Response({
-            'code': '400',
+            'code': '200',
             'type': 'generateToken',
-            'message': 'Invalid parameters'
-        }, status=status.HTTP_400_BAD_REQUEST)
+            'message': '⚠️ DEPRECATED: Token generation is now automatic. No manual call needed.',
+            'note': 'All ERP endpoints auto-generate tokens in background.',
+            'apiKey': 'AUTO_GENERATED_BY_BACKEND'
+        }, status=status.HTTP_200_OK)
 
 
 class GetItemMasterView(APIView):
     """
-    Get item master details
-    GET: Fetch item details based on parameters in request body
+    Get item master details with product information including images, subheading, and description
+    GET: Fetch item details DIRECTLY from ERP test server (real-time data)
+    Enhanced with product images, subheading, and description from Django database
+    
+    🎯 NEW: Token is now automatically generated in background!
+    Frontend doesn't need to provide apiKey - backend handles it automatically
     """
     permission_classes = [AllowAny]
     
     def get(self, request):
-        serializer = FetchStockRequestSerializer(data=request.data)
-        if serializer.is_valid():
-            api_key = serializer.validated_data['apiKey']
+        try:
+            # 🎯 Use auto-generated token ONLY - NO apiKey from request accepted
+            from .erp_token_service import get_erp_token_for_request
+            
+            api_key = get_erp_token_for_request()
+            if not api_key:
+                return Response({
+                    'code': '503',
+                    'type': 'getMasterData',
+                    'message': 'ERP service temporarily unavailable - token generation failed'
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
+            logger.info(f"[GET_ITEM_MASTER] Using auto-generated token")
             
             try:
-                # Validate API key
-                api_token = APIToken.objects.get(api_key=api_key, is_active=True)
-            except APIToken.DoesNotExist:
+                # FETCH DIRECTLY FROM ERP SERVER (configurable in settings.py)
+                erp_base_url = settings.ERP_BASE_URL
+                erp_server_url = f"{erp_base_url}/ws_c2_services_get_master_data"
+                
+                logger.info(f"[GET_ITEM_MASTER] Fetching from ERP: {erp_server_url}")
+                
+                erp_response = requests.get(erp_server_url, params={'apiKey': api_key}, timeout=10)
+                
+                if erp_response.status_code != 200:
+                    logger.error(f"ERP Server error: {erp_response.status_code} - {erp_response.text}")
+                    return Response({
+                        'code': '500',
+                        'type': 'getMasterData',
+                        'message': f'ERP Server error: {erp_response.text}'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+                erp_data = erp_response.json()
+                items = erp_data.get('data', [])
+                
+                # Get user from query params (optional - for authenticated users wanting cart/wishlist status)
+                user = None
+                user_id = request.query_params.get('userId')
+                if user_id:
+                    try:
+                        user = CustomUser.objects.get(id=user_id)
+                    except CustomUser.DoesNotExist:
+                        pass
+                
+                # Get cart/wishlist info for user
+                user_cart = None
+                user_wishlist = None
+                
+                if user:
+                    try:
+                        user_cart = Cart.objects.get(user=user)
+                    except Cart.DoesNotExist:
+                        pass
+                    
+                    try:
+                        user_wishlist = Wishlist.objects.get(user=user)
+                    except Wishlist.DoesNotExist:
+                        pass
+                
+                # Enhance each item with product info from Django database
+                for item in items:
+                    item_code = item.get('c_item_code')
+                    
+                    # Try to get ProductInfo (images, subheading, description) from database
+                    try:
+                        item_master = ItemMaster.objects.get(item_code=item_code)
+                        product_info = ProductInfo.objects.get(item=item_master)
+                        
+                        # Add enriched data
+                        item['subheading'] = product_info.subheading
+                        item['description'] = product_info.description
+                        item['type_label'] = product_info.type_label
+                        item['brand_id'] = product_info.category.id if product_info.category else None
+                        item['brand_name'] = product_info.category.name if product_info.category else ''
+                        item['brand_logo'] = request.build_absolute_uri(product_info.category.icon.url) if product_info.category and product_info.category.icon else ''
+                        
+                        # Add images
+                        images = ProductImage.objects.filter(product_info=product_info).order_by('image_order')
+                        item['images'] = [
+                            {
+                                'image': request.build_absolute_uri(img.image.url),
+                                'image_order': img.image_order
+                            }
+                            for img in images
+                        ]
+                    except (ItemMaster.DoesNotExist, ProductInfo.DoesNotExist):
+                        # Item exists in ERP but not in our product info database
+                        # That's okay - SUPERADMIN can add product info later
+                        item['subheading'] = ''
+                        item['description'] = ''
+                        item['type_label'] = ''
+                        item['brand_id'] = None
+                        item['brand_name'] = ''
+                        item['brand_logo'] = ''
+                        item['images'] = []
+                    
+                    # Add cart and wishlist status
+                    item['cart_status'] = False
+                    item['wishlist_status'] = False
+                    
+                    if user and item_code:
+                        try:
+                            item_master = ItemMaster.objects.get(item_code=item_code)
+                            
+                            # Check if item is in cart
+                            if user_cart:
+                                item['cart_status'] = CartItem.objects.filter(
+                                    cart=user_cart,
+                                    item=item_master
+                                ).exists()
+                            
+                            # Check if item is in wishlist
+                            if user_wishlist:
+                                item['wishlist_status'] = WishlistItem.objects.filter(
+                                    wishlist=user_wishlist,
+                                    item=item_master
+                                ).exists()
+                        except ItemMaster.DoesNotExist:
+                            pass
+                
+                logger.info(f"[GET_ITEM_MASTER] Fetched {len(items)} items from ERP server with product enhancements")
+                
                 return Response({
-                    'code': '401',
+                    'code': '200',
                     'type': 'getMasterData',
-                    'message': 'Unauthorized - Invalid API key'
-                }, status=status.HTTP_401_UNAUTHORIZED)
+                    'data': items,
+                    'message': f'Fetched {len(items)} items from ERP server'
+                }, status=status.HTTP_200_OK)
             
-            # Get items from database
-            items = ItemMaster.objects.all()
-            item_serializer = ItemMasterSerializer(items, many=True)
-            
+            except requests.exceptions.ConnectionError:
+                return Response({
+                    'code': '503',
+                    'type': 'getMasterData',
+                    'message': 'ERP Server is not reachable. Make sure erp_test_server.py is running on port 44000'
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            except Exception as e:
+                logger.error(f"Error fetching from ERP server: {str(e)}")
+                return Response({
+                    'code': '500',
+                    'type': 'getMasterData',
+                    'message': f'Error: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Error in GetItemMasterView: {str(e)}")
             return Response({
-                'code': '200',
+                'code': '500',
                 'type': 'getMasterData',
-                'data': item_serializer.data
-            }, status=status.HTTP_200_OK)
+                'message': f'Error: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UpdateProductInfoView(APIView):
+    """
+    Update product information (subheading, description, and images)
+    POST/PUT: Update product info and upload images for an item
+    SUPERADMIN ONLY - Add product details through mobile app
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        # Check if user is SUPERADMIN
+        if getattr(request.user, 'role', None) != 'SUPERADMIN':
+            return Response({
+                'code': '403',
+                'type': 'updateProductInfo',
+                'message': 'Forbidden - Only SUPERADMIN can update product information'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = UpdateProductInfoRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            item_code = serializer.validated_data['c_item_code']
+            subheading = serializer.validated_data.get('subheading', '')
+            description = serializer.validated_data.get('description', '')
+            type_label = serializer.validated_data.get('type_label', '')
+            
+            # Get images if provided
+            images = {
+                1: serializer.validated_data.get('image_1'),
+                2: serializer.validated_data.get('image_2'),
+                3: serializer.validated_data.get('image_3'),
+            }
+            
+            try:
+                # Get the item
+                item = ItemMaster.objects.get(item_code=item_code)
+                
+                # Get or create ProductInfo
+                product_info, created = ProductInfo.objects.get_or_create(
+                    item=item
+                )
+                
+                # Update ProductInfo fields
+                product_info.subheading = subheading
+                product_info.description = description
+                product_info.type_label = type_label
+                product_info.save()
+                
+                # Audit log
+                logger.info(f"[PRODUCT_INFO_UPDATED] Item: {item_code} | Subheading: {subheading} | Description: {description} | Type Label: {type_label} | Updated by: {request.user.username}")
+                
+                # Handle image uploads
+                uploaded_images = []
+                for image_order in [1, 2, 3]:
+                    image_file = images.get(image_order)
+                    if image_file:
+                        try:
+                            # Check if image with same order already exists
+                            existing_image = ProductImage.objects.filter(
+                                product_info=product_info,
+                                image_order=image_order
+                            ).first()
+                            
+                            if existing_image:
+                                # Update existing image
+                                existing_image.image = image_file
+                                existing_image.save()
+                                image_url = request.build_absolute_uri(existing_image.image.url)
+                                uploaded_images.append({
+                                    'image_order': image_order,
+                                    'status': 'updated',
+                                    'image': image_url
+                                })
+                                logger.info(f"[PRODUCT_IMAGE_UPDATED] Item: {item_code} | Order: {image_order} | Updated by: {request.user.username}")
+                            else:
+                                # Create new image
+                                product_image = ProductImage.objects.create(
+                                    product_info=product_info,
+                                    image=image_file,
+                                    image_order=image_order
+                                )
+                                image_url = request.build_absolute_uri(product_image.image.url)
+                                uploaded_images.append({
+                                    'image_order': image_order,
+                                    'status': 'uploaded',
+                                    'image': image_url
+                                })
+                                logger.info(f"[PRODUCT_IMAGE_CREATED] Item: {item_code} | Order: {image_order} | Created by: {request.user.username}")
+                        except Exception as img_error:
+                            logger.error(f"Error uploading image {image_order}: {str(img_error)}")
+                            uploaded_images.append({
+                                'image_order': image_order,
+                                'status': 'error',
+                                'error': str(img_error)
+                            })
+                
+                return Response({
+                    'code': '200',
+                    'type': 'updateProductInfo',
+                    'message': 'Product info updated successfully',
+                    'data': {
+                        'c_item_code': item_code,
+                        'subheading': product_info.subheading,
+                        'description': product_info.description,
+                        'type_label': product_info.type_label,
+                        'brand_id': product_info.category.id if product_info.category else None,
+                        'brand_name': product_info.category.name if product_info.category else '',
+                        'brand_logo': request.build_absolute_uri(product_info.category.icon.url) if product_info.category and product_info.category.icon else '',
+                        'images': uploaded_images
+                    }
+                }, status=status.HTTP_200_OK)
+            
+            except ItemMaster.DoesNotExist:
+                return Response({
+                    'code': '404',
+                    'type': 'updateProductInfo',
+                    'message': f'Item with code {item_code} not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            except Exception as e:
+                logger.error(f"Error updating product info: {str(e)}")
+                return Response({
+                    'code': '500',
+                    'type': 'updateProductInfo',
+                    'message': f'Error updating product info: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response({
             'code': '400',
-            'type': 'getMasterData',
-            'message': 'Invalid parameters'
+            'type': 'updateProductInfo',
+            'message': 'Invalid parameters',
+            'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request):
+        """PUT method - same as POST for updating product information"""
+        return self.post(request)
+
+
+
+
+
+class UploadProductImageView(APIView):
+    """
+    Upload product images
+    POST/PUT: Upload image for a product
+    SUPERADMIN ONLY - Add product images through mobile app
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        # Check if user is SUPERADMIN
+        if getattr(request.user, 'role', None) != 'SUPERADMIN':
+            return Response({
+                'code': '403',
+                'type': 'uploadProductImage',
+                'message': 'Forbidden - Only SUPERADMIN can upload product images'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = UploadProductImageRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            item_code = serializer.validated_data['c_item_code']
+            image = serializer.validated_data['image']
+            image_order = serializer.validated_data.get('image_order', 1)
+            
+            try:
+                # Get the item
+                item = ItemMaster.objects.get(item_code=item_code)
+                
+                # Get or create ProductInfo
+                product_info, _ = ProductInfo.objects.get_or_create(item=item)
+                
+                # Check if image with same order already exists
+                existing_image = ProductImage.objects.filter(
+                    product_info=product_info,
+                    image_order=image_order
+                ).first()
+                
+                if existing_image:
+                    # Update existing image
+                    existing_image.image = image
+                    existing_image.save()
+                    action = 'updated'
+                    logger.info(f"[PRODUCT_IMAGE_UPDATED] Item: {item_code} | Order: {image_order} | Updated by: {request.user.username}")
+                else:
+                    # Create new image
+                    ProductImage.objects.create(
+                        product_info=product_info,
+                        image=image,
+                        image_order=image_order
+                    )
+                    action = 'uploaded'
+                    logger.info(f"[PRODUCT_IMAGE_CREATED] Item: {item_code} | Order: {image_order} | Created by: {request.user.username}")
+                
+                return Response({
+                    'code': '200',
+                    'type': 'uploadProductImage',
+                    'message': f'Product image {action} successfully',
+                    'data': {
+                        'c_item_code': item_code,
+                        'image_order': image_order,
+                        'status': action
+                    }
+                }, status=status.HTTP_200_OK)
+            
+            except ItemMaster.DoesNotExist:
+                return Response({
+                    'code': '404',
+                    'type': 'uploadProductImage',
+                    'message': f'Item with code {item_code} not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            except Exception as e:
+                logger.error(f"Error uploading product image: {str(e)}")
+                return Response({
+                    'code': '500',
+                    'type': 'uploadProductImage',
+                    'message': f'Error uploading product image: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'code': '400',
+            'type': 'uploadProductImage',
+            'message': 'Invalid parameters',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request):
+        """PUT method - same as POST for uploading product images"""
+        return self.post(request)
 
 
 class FetchStockView(APIView):
     """
-    Fetch stock details for items
-    GET: Get stock information for all items
+    Fetch real-time stock details from ERP server
+    GET: Get stock information directly from ERP (real-time data)
+    
+    🎯 NEW: Token is now automatically generated in background!
+    Frontend doesn't need to provide apiKey - backend handles it automatically
     """
     permission_classes = [AllowAny]
     
     def get(self, request):
-        serializer = FetchStockRequestSerializer(data=request.query_params)
-        if serializer.is_valid():
-            api_key = serializer.validated_data['apiKey']
-            store_id = serializer.validated_data.get('storeId')
+        try:
+            # 🎯 Use auto-generated token ONLY - NO apiKey from request accepted
+            from .erp_token_service import get_erp_token_for_request
+            
+            api_key = get_erp_token_for_request()
+            if not api_key:
+                return Response({
+                    'code': '503',
+                    'type': 'fetchStock',
+                    'message': 'ERP service temporarily unavailable - token generation failed'
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
+            logger.info(f"[FETCH_STOCK] Using auto-generated token")
+            
+            store_id = request.query_params.get('storeId')
             
             try:
-                # Validate API key
-                api_token = APIToken.objects.get(api_key=api_key, is_active=True)
-            except APIToken.DoesNotExist:
+                # FETCH DIRECTLY FROM ERP SERVER (real-time stock data)
+                erp_base_url = settings.ERP_BASE_URL
+                erp_server_url = f"{erp_base_url}/ws_c2_services_fetch_stock"
+                
+                logger.info(f"[FETCH_STOCK] Fetching from ERP: {erp_server_url}")
+                
+                # Build ERP request parameters
+                erp_params = {'apiKey': api_key}
+                if store_id:
+                    erp_params['storeId'] = store_id
+                
+                erp_response = requests.get(erp_server_url, params=erp_params, timeout=10)
+                
+                if erp_response.status_code != 200:
+                    logger.error(f"ERP Server error: {erp_response.status_code} - {erp_response.text}")
+                    return Response({
+                        'code': '500',
+                        'type': 'fetchStock',
+                        'message': f'ERP Server error: {erp_response.text}'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+                erp_data = erp_response.json()
+                # Handle both dict with 'data' key and direct list responses from ERP
+                if isinstance(erp_data, dict):
+                    stock_items = erp_data.get('data', [])
+                elif isinstance(erp_data, list):
+                    stock_items = erp_data
+                else:
+                    stock_items = []
+                
+                logger.info(f"[FETCH_STOCK] Fetched {len(stock_items)} stock items from ERP server")
+                
                 return Response({
-                    'code': '401',
-                    'message': 'Unauthorized - Invalid API key'
-                }, status=status.HTTP_401_UNAUTHORIZED)
-            
-            # Get stock data
-            if store_id:
-                stocks = Stock.objects.filter(store_id=store_id)
-            else:
-                stocks = Stock.objects.all()
-            
-            stock_serializer = StockItemSerializer(stocks, many=True)
-            
-            return Response(stock_serializer.data, status=status.HTTP_200_OK)
-        
-        return Response({
-            'code': '400',
-            'message': 'Invalid parameters'
-        }, status=status.HTTP_400_BAD_REQUEST)
+                    'code': '200',
+                    'type': 'fetchStock',
+                    'data': stock_items,
+                    'message': f'Fetched {len(stock_items)} stock items from ERP server'
+                }, status=status.HTTP_200_OK)
+                
+            except requests.exceptions.RequestException as e:
+                logger.error(f"[FETCH_STOCK] Error connecting to ERP: {str(e)}")
+                return Response({
+                    'code': '500',
+                    'type': 'fetchStock',
+                    'message': f'Error connecting to ERP server: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"[FETCH_STOCK] Error in get request: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'fetchStock',
+                'message': f'Error: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CreateSalesOrderView(APIView):
     """
     Create a sales order in the system
     POST: Create sales order with line items
+    
+    🎯 Token auto-generated in background - NO apiKey needed in request!
     """
     permission_classes = [AllowAny]
     
     def post(self, request):
         serializer = CreateSalesOrderRequestSerializer(data=request.data)
         if serializer.is_valid():
-            api_key = serializer.validated_data['apiKey']
-            
-            try:
-                # Validate API key
-                api_token = APIToken.objects.get(api_key=api_key, is_active=True)
-            except APIToken.DoesNotExist:
+            # 🎯 Use auto-generated token from background service
+            from .erp_token_service import get_erp_token_for_request
+            api_key = get_erp_token_for_request()
+            if not api_key:
                 return Response({
-                    'code': '401',
+                    'code': '503',
                     'type': 'SaleOrderCreate',
-                    'message': 'Unauthorized - Invalid API key'
-                }, status=status.HTTP_401_UNAUTHORIZED)
+                    'message': 'ERP service temporarily unavailable'
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             
             try:
                 # Create sales order
@@ -1261,24 +1635,25 @@ class CreateGLCustomerView(APIView):
     """
     Create Global Local Customer Master
     POST: Create customer record accessible across stores
+    
+    🎯 Token auto-generated in background - NO apiKey needed in request!
     """
     permission_classes = [AllowAny]
     
     def post(self, request):
         serializer = CreateGLCustomerRequestSerializer(data=request.data)
         if serializer.is_valid():
-            api_key = serializer.validated_data['apiKey']
             code = serializer.validated_data['Code']
             
-            try:
-                # Validate API key
-                api_token = APIToken.objects.get(api_key=api_key, is_active=True)
-            except APIToken.DoesNotExist:
+            # 🎯 Use auto-generated token from background service
+            from .erp_token_service import get_erp_token_for_request
+            api_key = get_erp_token_for_request()
+            if not api_key:
                 return Response({
-                    'code': '401',
+                    'code': '503',
                     'type': 'glcustcreation',
-                    'message': 'Unauthorized - Invalid API key'
-                }, status=status.HTTP_401_UNAUTHORIZED)
+                    'message': 'ERP service temporarily unavailable'
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             
             # Check if customer code already exists
             if GLCustomer.objects.filter(code=code).exists():
@@ -1330,6 +1705,8 @@ class GetOrderStatusView(APIView):
     """
     Get order status with transaction details
     GET: Retrieve sales order status and invoice details
+    
+    🎯 Token auto-generated in background - NO apiKey needed in request!
     """
     permission_classes = [AllowAny]
     
@@ -1337,23 +1714,22 @@ class GetOrderStatusView(APIView):
         # Parse request parameters
         c2_code = request.query_params.get('c2Code')
         store_id = request.query_params.get('storeId')
-        api_key = request.query_params.get('apiKey')
         order_id = request.query_params.get('orderId')
         
-        if not all([c2_code, store_id, api_key, order_id]):
+        if not all([c2_code, store_id, order_id]):
             return Response({
                 'code': '400',
-                'message': 'Missing required parameters'
+                'message': 'Missing required parameters (c2Code, storeId, orderId)'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        try:
-            # Validate API key
-            api_token = APIToken.objects.get(api_key=api_key, is_active=True)
-        except APIToken.DoesNotExist:
+        # 🎯 Use auto-generated token from background service
+        from .erp_token_service import get_erp_token_for_request
+        api_key = get_erp_token_for_request()
+        if not api_key:
             return Response({
-                'code': '401',
-                'message': 'Unauthorized - Invalid API key'
-            }, status=status.HTTP_401_UNAUTHORIZED)
+                'code': '503',
+                'message': 'ERP service temporarily unavailable'
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         
         try:
             # Get sales order
@@ -1399,24 +1775,32 @@ class CartView(APIView):
     GET: Retrieve cart with all items and totals
     DELETE: Clear entire cart
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
-    def get(self, request):
-        cart, created = Cart.objects.get_or_create(user=request.user)
+    def get(self, request, user_id):
+        try:
+            user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        cart, created = Cart.objects.get_or_create(user=user)
         serializer = CartSerializer(cart)
         
         # Fetch fresh stock status for each item
-        api_key = request.query_params.get('apiKey')
+        # [UPDATED] Token now auto-generated - no need for apiKey from request
         cart_data = serializer.data
         
         for item in cart_data.get('items', []):
-            item_code = item.get('item')
-            stock_status = get_item_stock_status(item_code, api_key)
-            item['availability'] = stock_status['status']
-            item['available_qty'] = stock_status['qty']
-            item['in_stock'] = stock_status['available']
-            item['current_price'] = stock_status['price']
-            item['current_discount'] = stock_status['discount']
+            item_code = item.get('itemCode')
+            stock_status = get_item_stock_status(item_code)
+            item['availability'] = stock_status.get('status', 'Unknown')
+            item['available_qty'] = stock_status.get('qty', 0)
+            item['in_stock'] = stock_status.get('available', False)
+            item['current_price'] = str(round(stock_status.get('price', float(item.get('mrp', 0))), 2))
+            item['current_discount'] = round(stock_status.get('discount', 0), 2)
         
         return Response({
             'success': True,
@@ -1424,9 +1808,17 @@ class CartView(APIView):
             'data': cart_data
         }, status=status.HTTP_200_OK)
     
-    def delete(self, request):
+    def delete(self, request, user_id):
         try:
-            cart = Cart.objects.get(user=request.user)
+            user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        try:
+            cart = Cart.objects.get(user=user)
             cart.items.all().delete()
             serializer = CartSerializer(cart)
             return Response({
@@ -1466,7 +1858,7 @@ class AddToCartView(APIView):
         item_code = serializer.validated_data['itemCode']
         quantity = serializer.validated_data.get('quantity', 1)
         batch_no = serializer.validated_data.get('batchNo')
-        api_key = request.data.get('apiKey')
+        # [UPDATED] Token now auto-generated - no need for apiKey from request
         
         # Get user from database
         try:
@@ -1481,7 +1873,7 @@ class AddToCartView(APIView):
         try:
             with transaction.atomic():
                 # Fetch fresh item details from ERP - REQUIRED, no fallback
-                item_data = fetch_item_from_erp(item_code, api_key)
+                item_data = fetch_item_from_erp(item_code)
                 
                 if not item_data:
                     return Response({
@@ -1499,7 +1891,7 @@ class AddToCartView(APIView):
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
                 # Check stock availability - CRITICAL for pharmacy (includes expiry check)
-                stock_status = get_item_stock_status(item_code, api_key)
+                stock_status = get_item_stock_status(item_code)
                 if not stock_status['available']:
                     logger.warning(f"User {user_id} tried to add unavailable item {item_code} - Status: {stock_status['status']}")
                     return Response({
@@ -1540,11 +1932,21 @@ class AddToCartView(APIView):
                 # ✅ FIX #4: AUDIT LOGGING - Track all cart additions
                 logger.info(f"[CART_ADD] User: {user.id} ({user.username}) | Item: {item_code} | Qty: {quantity} | Batch: {batch_no} | Total Items in Cart: {cart.items.count()}")
                 
-                cart_serializer = CartSerializer(cart)
+                item_serializer = CartItemSmallSerializer(cart_item)
+                item_data = item_serializer.data
+                
+                # Add stock status to response
+                stock_status = get_item_stock_status(item_code)
+                item_data['availability'] = stock_status.get('status', 'Unknown')
+                item_data['available_qty'] = stock_status.get('qty', 0)
+                item_data['in_stock'] = stock_status.get('available', False)
+                item_data['current_price'] = str(round(stock_status.get('price', float(item_data.get('mrp', 0))), 2))
+                item_data['current_discount'] = round(stock_status.get('discount', 0), 2)
+                
                 return Response({
                     'success': True,
                     'message': f'{item.item_name} added to cart' if created else f'{item.item_name} quantity updated',
-                    'data': cart_serializer.data
+                    'data': item_data
                 }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         
         except Exception as e:
@@ -1561,10 +1963,27 @@ class UpdateCartItemView(APIView):
     Update cart item quantity
     PUT: Update quantity of specific cart item
     DELETE: Remove item from cart
+    Query params: user_id (required)
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def put(self, request, item_id):
+        # Get user_id from query params
+        user_id = request.query_params.get('userId')
+        if not user_id:
+            return Response({
+                'success': False,
+                'message': 'userId query parameter is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
         serializer = UpdateCartItemSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({
@@ -1574,16 +1993,27 @@ class UpdateCartItemView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            cart = Cart.objects.get(user=request.user)
+            cart = Cart.objects.get(user=user)
             cart_item = CartItem.objects.get(id=item_id, cart=cart)
             cart_item.quantity = serializer.validated_data['quantity']
             cart_item.save()
             
-            cart_serializer = CartSerializer(cart)
+            item_serializer = CartItemSmallSerializer(cart_item)
+            item_data = item_serializer.data
+            
+            # Add stock status to response
+            item_code = cart_item.item.item_code
+            stock_status = get_item_stock_status(item_code)
+            item_data['availability'] = stock_status.get('status', 'Unknown')
+            item_data['available_qty'] = stock_status.get('qty', 0)
+            item_data['in_stock'] = stock_status.get('available', False)
+            item_data['current_price'] = str(round(stock_status.get('price', float(item_data.get('mrp', 0))), 2))
+            item_data['current_discount'] = round(stock_status.get('discount', 0), 2)
+            
             return Response({
                 'success': True,
                 'message': 'Cart item updated successfully',
-                'data': cart_serializer.data
+                'data': item_data
             }, status=status.HTTP_200_OK)
         except Cart.DoesNotExist:
             return Response({
@@ -1597,17 +2027,36 @@ class UpdateCartItemView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
     
     def delete(self, request, item_id):
+        # Get user_id from query params
+        user_id = request.query_params.get('userId')
+        if not user_id:
+            return Response({
+                'success': False,
+                'message': 'userId query parameter is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
-            cart = Cart.objects.get(user=request.user)
+            user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        try:
+            cart = Cart.objects.get(user=user)
             cart_item = CartItem.objects.get(id=item_id, cart=cart)
             item_name = cart_item.item.item_name
+            item_id_val = cart_item.id
             cart_item.delete()
             
-            cart_serializer = CartSerializer(cart)
             return Response({
                 'success': True,
                 'message': f'{item_name} removed from cart',
-                'data': cart_serializer.data
+                'data': {
+                    'id': item_id_val,
+                    'itemName': item_name
+                }
             }, status=status.HTTP_200_OK)
         except Cart.DoesNotExist:
             return Response({
@@ -1637,8 +2086,27 @@ class UpdateWishlistItemView(APIView):
         """
         Increase or decrease wishlist item quantity.
         Request body: { "quantity": <int> }
+        Query param: user_id (required)
         """
         from .models import Wishlist, WishlistItem
+        
+        # Get user_id from query params
+        user_id = request.query_params.get('user_id')
+        if not user_id:
+            return Response({
+                'success': False,
+                'message': 'user_id query parameter is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get user from database
+        try:
+            user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
         quantity = request.data.get('quantity')
         if quantity is None:
             return Response({
@@ -1658,7 +2126,7 @@ class UpdateWishlistItemView(APIView):
                 'message': 'Quantity cannot be negative'
             }, status=status.HTTP_400_BAD_REQUEST)
         try:
-            wishlist = Wishlist.objects.get(user=request.user)
+            wishlist = Wishlist.objects.get(user=user)
             wishlist_item = WishlistItem.objects.get(id=item_id, wishlist=wishlist)
         except Wishlist.DoesNotExist:
             return Response({
@@ -1689,6 +2157,7 @@ class UpdateWishlistItemView(APIView):
         else:
             wishlist_item.quantity = quantity
             wishlist_item.save()
+            logger.info(f"[WISHLIST_UPDATE] User: {user.id} ({user.username}) | WishlistItem: {item_id} | Quantity: {quantity}")
             from .serializers import WishlistSerializer
             wishlist_serializer = WishlistSerializer(wishlist)
             return Response({
@@ -1705,10 +2174,14 @@ class WishlistView(APIView):
     """
     permission_classes = [AllowAny]
     
-    def get(self, request):
-        user_id = request.query_params.get('user_id')
+    def get(self, request, user_id=None):
+        # Get user_id from URL path or query params
+        if not user_id:
+            user_id = request.query_params.get('user_id')
+        
         api_key = request.query_params.get('apiKey')
         user = request.user
+        
         if user_id:
             from django.contrib.auth import get_user_model
             User = get_user_model()
@@ -1726,33 +2199,25 @@ class WishlistView(APIView):
                 'message': 'Authentication required or user_id must be provided',
                 'data': []
             }, status=status.HTTP_401_UNAUTHORIZED)
+        
         wishlist, created = Wishlist.objects.get_or_create(user=user)
         
-        # Fetch fresh stock status for each item
+        # Use WishlistItemSerializer instead of manual serialization
+        from .serializers import WishlistItemSerializer
+        items_serializer = WishlistItemSerializer(wishlist.items.all(), many=True, context={'request': request})
+        
         wishlist_data = {
             'id': wishlist.id,
             'user': wishlist.user.id,
-            'items': []
+            'items': items_serializer.data
         }
         
-        for item in wishlist.items.all():
-            stock_status = get_item_stock_status(item.item.item_code, api_key)
-            item_data = {
-                'id': item.id,
-                'item': item.item.item_code,
-                'item_name': item.item.item_name,
-                'quantity': item.quantity,
-                'availability': stock_status['status'],
-                'available_qty': stock_status['qty'],
-                'in_stock': stock_status['available'],
-                'current_price': stock_status['price'],
-                'current_discount': stock_status['discount']
-            }
-            wishlist_data['items'].append(item_data)
+        # If wishlist is empty, return success with empty message
+        message = 'Wishlist retrieved successfully' if wishlist_data['items'] else 'Wishlist is empty'
         
         return Response({
             'success': True,
-            'message': 'Wishlist retrieved successfully',
+            'message': message,
             'data': wishlist_data
         }, status=status.HTTP_200_OK)
     
@@ -1782,8 +2247,17 @@ class AddToWishlistView(APIView):
     """
     permission_classes = [AllowAny]
     
-    def post(self, request):
+    def post(self, request, user_id):
         from django.db import transaction
+        
+        # ✅ FIX: Get user from database instead of request.user
+        try:
+            user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
         
         serializer = AddToWishlistSerializer(data=request.data)
         if not serializer.is_valid():
@@ -1794,13 +2268,13 @@ class AddToWishlistView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         item_code = serializer.validated_data['itemCode']
-        api_key = request.data.get('apiKey')
+        # [UPDATED] Token now auto-generated - no need for apiKey from request
         
         # ✅ FIX #3: ATOMIC TRANSACTION - Prevents race conditions
         try:
             with transaction.atomic():
                 # Fetch fresh item details from ERP - REQUIRED, no fallback
-                item_data = fetch_item_from_erp(item_code, api_key)
+                item_data = fetch_item_from_erp(item_code)
                 
                 if not item_data:
                     return Response({
@@ -1809,9 +2283,9 @@ class AddToWishlistView(APIView):
                     }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
                 
                 # Check stock availability BEFORE adding to wishlist
-                stock_status = get_item_stock_status(item_code, api_key)
+                stock_status = get_item_stock_status(item_code)
                 if not stock_status['available']:
-                    logger.warning(f"User tried to wishlist unavailable item {item_code} - Status: {stock_status['status']}")
+                    logger.warning(f"User {user_id} tried to wishlist unavailable item {item_code} - Status: {stock_status['status']}")
                     return Response({
                         'success': False,
                         'message': f'Item is {stock_status["status"]}',
@@ -1829,8 +2303,8 @@ class AddToWishlistView(APIView):
                         'message': 'Failed to process item. Please try again.'
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
-                # Get or create wishlist
-                wishlist, _ = Wishlist.objects.get_or_create(user=request.user)
+                # Get or create wishlist for the user
+                wishlist, _ = Wishlist.objects.get_or_create(user=user)
                 
                 # Check if item already in wishlist
                 wishlist_item, created = WishlistItem.objects.get_or_create(
@@ -1841,24 +2315,28 @@ class AddToWishlistView(APIView):
                 if not created:
                     wishlist_item.quantity += 1
                     wishlist_item.save()
-                    logger.info(f"[WISHLIST_UPDATE] User: {request.user.id} | Item: {item_code} | Quantity now: {wishlist_item.quantity}")
+                    logger.info(f"[WISHLIST_UPDATE] User: {user.id} ({user.username}) | Item: {item_code} | Quantity now: {wishlist_item.quantity}")
+                    # Serialize just the updated item with ProductInfo data
+                    item_serializer = WishlistItemSerializer(wishlist_item, context={'request': request})
                     return Response({
-                        'success': False,
-                        'message': f'{item.item_name} is already in your wishlist'
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                        'success': True,
+                        'message': f'{item.item_name} quantity increased to {wishlist_item.quantity}',
+                        'data': item_serializer.data
+                    }, status=status.HTTP_200_OK)
                 
                 # ✅ FIX #4: AUDIT LOGGING
-                logger.info(f"[WISHLIST_ADD] User: {request.user.id} ({request.user.username}) | Item: {item_code}")
+                logger.info(f"[WISHLIST_ADD] User: {user.id} ({user.username}) | Item: {item_code}")
                 
-                wishlist_serializer = WishlistSerializer(wishlist)
+                # Serialize just the added item with ProductInfo data
+                item_serializer = WishlistItemSerializer(wishlist_item, context={'request': request})
                 return Response({
                     'success': True,
                     'message': f'{item.item_name} added to wishlist',
-                    'data': wishlist_serializer.data
+                    'data': item_serializer.data
                 }, status=status.HTTP_201_CREATED)
         
         except Exception as e:
-            logger.error(f"[WISHLIST_ERROR] User: {request.user.id} | Item: {item_code} | Error: {str(e)}", exc_info=True)
+            logger.error(f"[WISHLIST_ERROR] User: {user_id} | Item: {item_code} | Error: {str(e)}", exc_info=True)
             return Response({
                 'success': False,
                 'message': 'An error occurred while adding item to wishlist. Please try again.'
@@ -1948,143 +2426,110 @@ class MoveToCartView(APIView):
         wishlist_item.delete()
         
         cart_serializer = CartSerializer(cart)
+        cart_data = cart_serializer.data
+        
+        # Fetch fresh stock status for each item
+        for item in cart_data.get('items', []):
+            item_code = item.get('itemCode')
+            stock_status = get_item_stock_status(item_code)
+            item['availability'] = stock_status.get('status', 'Unknown')
+            item['available_qty'] = stock_status.get('qty', 0)
+            item['in_stock'] = stock_status.get('available', False)
+            item['current_price'] = str(round(stock_status.get('price', float(item.get('mrp', 0))), 2))
+            item['current_discount'] = round(stock_status.get('discount', 0), 2)
+        
         return Response({
             'success': True,
             'message': f'{item.item_name} moved to cart',
             'data': {
-                'cart': cart_serializer.data
+                'cart': cart_data
             }
         }, status=status.HTTP_200_OK)
 
 
-# ==================== BRAND VIEWS ====================
-
-class BrandsView(APIView):
-    """
-    Get all medicine brands for sidebar categorization
-    GET: Retrieve all active brands
-    """
-    permission_classes = [AllowAny]
-    
-    def get(self, request):
-        try:
-            brands = Brand.objects.filter(is_active=True)
-            serializer = BrandSerializer(brands, many=True)
-            
-            return Response({
-                'success': True,
-                'message': 'Brands retrieved successfully',
-                'data': serializer.data
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({
-                'success': False,
-                'message': f'Error retrieving brands: {str(e)}'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-
-class BrandProductsView(APIView):
-    """
-    Get products by brand
-    GET: Retrieve products filtered by brand
-    Query Parameters:
-        - brand_id: Brand ID (required)
-    """
-    permission_classes = [AllowAny]
-    
-    def get(self, request):
-        try:
-            brand_id = request.query_params.get('brand_id')
-            
-            if not brand_id:
-                return Response({
-                    'success': False,
-                    'message': 'brand_id is required'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Check if brand exists
-            try:
-                brand = Brand.objects.get(id=brand_id, is_active=True)
-            except Brand.DoesNotExist:
-                return Response({
-                    'success': False,
-                    'message': 'Brand not found'
-                }, status=status.HTTP_404_NOT_FOUND)
-            
-            # Get products for this brand with product info
-            product_infos = ProductInfo.objects.filter(brand=brand).select_related('item')
-            
-            products = []
-            for product_info in product_infos:
-                item = product_info.item
-                mrp = float(item.mrp)
-                discount = float(item.std_disc)
-                discounted = mrp * (1 - discount / 100)
-                
-                product_image_url = None
-                if product_info.product_image:
-                    product_image_url = request.build_absolute_uri(product_info.product_image.url)
-                
-                products.append({
-                    'itemCode': item.item_code,
-                    'itemName': item.item_name,
-                    'brandName': brand.name,
-                    'productImage': product_image_url,
-                    'mrp': float(item.mrp),
-                    'discountPercentage': item.std_disc,
-                    'discountedPrice': round(discounted, 2),
-                    'description': product_info.description
-                })
-            
-            logo_url = None
-            if brand.logo:
-                logo_url = request.build_absolute_uri(brand.logo.url)
-            
-            return Response({
-                'success': True,
-                'message': 'Products retrieved successfully',
-                'data': {
-                    'brand': {
-                        'id': brand.id,
-                        'name': brand.name,
-                        'logo': logo_url,
-                        'description': brand.description
-                    },
-                    'products': products,
-                    'count': len(products)
-                }
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({
-                'success': False,
-                'message': f'Error retrieving products: {str(e)}'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
+# ==================== PRODUCTS VIEW ====================
 
 class AllProductsView(APIView):
     """
-    Get all products with optional brand filter
-    GET: Retrieve all products with optional brand filter or search
+    Get all products with optional search and ERP enrichment
+    GET: Retrieve all products with optional search
+    
     Query Parameters:
-        - brand_id: Filter by brand ID (optional)
         - search: Search by product name (optional)
+        - limit: Max results to return (default: 50)
+        - apiKey: Optional ERP API key for live data enrichment
+    
+    Data Sources:
+        - Without apiKey: Database only (local cache)
+        - With apiKey: ERP live data (pricing, stock, expiry, batches)
+    
+    Example: /api/products/?search=paracetamol&limit=20&apiKey=YOUR_KEY
     """
     permission_classes = [AllowAny]
     
     def get(self, request):
         try:
-            # Start with all product infos
-            product_infos = ProductInfo.objects.select_related('item', 'brand')
+            search = request.query_params.get('search')
+            limit = int(request.query_params.get('limit', 50))
             
-            # Filter by brand if provided
-            brand_id = request.query_params.get('brand_id')
-            if brand_id:
-                product_infos = product_infos.filter(brand_id=brand_id)
+            # [UPDATED] Always use auto-generated token - try ERP first
+            logger.info(f"[PRODUCTS] Fetching from ERP with auto-generated token")
+            erp_items = fetch_all_items_from_erp()
+            
+            if erp_items:
+                # Filter by search if provided
+                if search:
+                    search_lower = search.lower()
+                    erp_items = [
+                        item for item in erp_items
+                        if search_lower in item.get('itemName', '').lower()
+                    ]
+                
+                # Limit results
+                erp_items = erp_items[:limit]
+                
+                # Format response
+                products = []
+                for item in erp_items:
+                    mrp = float(item.get('mrp', 0))
+                    discount = float(item.get('std_disc', 0))
+                    discounted = mrp * (1 - discount / 100) if mrp > 0 else 0
+                    
+                    products.append({
+                        'c_item_code': item.get('c_item_code'),
+                        'itemName': item.get('itemName'),
+                        'itemQtyPerBox': item.get('itemQtyPerBox'),
+                        'batchNo': item.get('batchNo'),
+                        'mrp': mrp,
+                        'std_disc': discount,
+                        'max_disc': float(item.get('max_disc', 0)),
+                        'discountedPrice': round(discounted, 2),
+                        'stockBalQty': item.get('stockBalQty', 0),
+                        'expiryDate': item.get('expiryDate'),
+                        'source': 'erp'
+                    })
+                
+                logger.info(f"[PRODUCTS] Retrieved {len(products)} products from ERP | Source: ERP")
+                
+                return Response({
+                    'success': True,
+                    'message': f'Found {len(products)} products from ERP',
+                    'data': products,
+                    'count': len(products),
+                    'source': 'erp',
+                    'lastFetched': timezone.now().isoformat()
+                }, status=status.HTTP_200_OK)
+            
+            # [FALLBACK] Fetch from database if ERP not available
+            logger.info(f"[PRODUCTS] ERP unavailable, falling back to database")
+            product_infos = ProductInfo.objects.select_related('item', 'category')
             
             # Search by product name if provided
-            search = request.query_params.get('search')
             if search:
                 product_infos = product_infos.filter(item__item_name__icontains=search)
+            
+            # Limit results
+            product_infos = product_infos[:limit]
             
             products = []
             for product_info in product_infos:
@@ -2093,46 +2538,515 @@ class AllProductsView(APIView):
                 discount = float(item.std_disc)
                 discounted = mrp * (1 - discount / 100)
                 
+                # Get first product image
+                product_images = ProductImage.objects.filter(product_info=product_info).first()
                 product_image_url = None
-                if product_info.product_image:
-                    product_image_url = request.build_absolute_uri(product_info.product_image.url)
+                if product_images:
+                    product_image_url = request.build_absolute_uri(product_images.image.url)
+                
+                # Get stock quantity
+                stock_qty = 0
+                try:
+                    stock = Stock.objects.filter(item=item).first()
+                    if stock:
+                        stock_qty = stock.total_bal_ls_qty
+                except:
+                    stock_qty = 0
                 
                 products.append({
-                    'itemCode': item.item_code,
+                    'c_item_code': item.item_code,
                     'itemName': item.item_name,
-                    'brandName': product_info.brand.name if product_info.brand else None,
-                    'productImage': product_image_url,
+                    'itemQtyPerBox': item.item_qty_per_box,
+                    'batchNo': item.batch_no,
                     'mrp': float(item.mrp),
-                    'discountPercentage': item.std_disc,
+                    'std_disc': float(item.std_disc),
+                    'max_disc': float(item.max_disc),
                     'discountedPrice': round(discounted, 2),
-                    'description': product_info.description
+                    'stockBalQty': stock_qty,
+                    'expiryDate': str(item.expiry_date) if item.expiry_date else None,
+                    'description': product_info.description or '',
+                    'type_label': product_info.type_label or '',
+                    'category': product_info.category.name if product_info.category else None,
+                    'productImage': product_image_url,
+                    'source': 'database'
                 })
+            
+            logger.info(f"[PRODUCTS] Retrieved {len(products)} products from database | Source: Database")
             
             return Response({
                 'success': True,
-                'message': 'Products retrieved successfully',
+                'message': f'Found {len(products)} products',
                 'data': products,
-                'count': len(products)
+                'count': len(products),
+                'source': 'database',
+                'hint': 'Use ?apiKey=YOUR_KEY to fetch live ERP data'
             }, status=status.HTTP_200_OK)
         except Exception as e:
+            logger.error(f"[PRODUCTS_ERROR] Error retrieving products: {str(e)}", exc_info=True)
             return Response({
                 'success': False,
                 'message': f'Error retrieving products: {str(e)}'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SearchProductsView(APIView):
+    """
+    Search products by name, category, and keywords
+    GET: Search for products matching the query
+    
+    URL Parameters:
+        - user_id: The ID of the user performing the search
+    
+    Query Parameters:
+        - q or search: Search keyword (required)
+        - category: Filter by category ID (optional)
+        - limit: Max results to return (default: 20)
+        - apiKey: Optional ERP API key for live data enrichment
+    
+    Data Sources:
+        - Without apiKey: Database only (stockBalQty from Stock table)
+        - With apiKey: ERP live data (pricing, stock, expiry)
+    
+    Example: /api/search/88/?q=paracetamol&limit=10&apiKey=YOUR_KEY
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request, user_id):
+        try:
+            # Get search query from params
+            query = request.query_params.get('q') or request.query_params.get('search')
+            category_id = request.query_params.get('category')
+            limit = int(request.query_params.get('limit', 20))
+            
+            if not query:
+                return Response({
+                    'success': False,
+                    'message': 'Search query parameter "q" or "search" is required',
+                    'example': '/api/search/?q=paracetamol'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Clean and validate query
+            query = query.strip()
+            if len(query) < 2:
+                return Response({
+                    'success': False,
+                    'message': 'Search query must be at least 2 characters'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # [UPDATED] Fetch ERP data with auto-generated token
+            erp_map = {}
+            erp_items = fetch_all_items_from_erp()
+            erp_map = {item.get('c_item_code'): item for item in erp_items} if erp_items else {}
+            if erp_map:
+                logger.info(f"[SEARCH] Fetched {len(erp_map)} items from ERP with auto-token")
+            
+            # Start with product infos
+            from django.db.models import Q
+            product_infos = ProductInfo.objects.select_related('item', 'category').filter(
+                Q(item__item_name__icontains=query) |  # Search in product name
+                Q(description__icontains=query) |      # Search in description
+                Q(type_label__icontains=query) |       # Search in type (Tablet, Injection, etc)
+                Q(category__name__icontains=query)     # Search in category/brand name
+            ).distinct()
+            
+            # Filter by category if provided
+            if category_id:
+                try:
+                    category_id = int(category_id)
+                    product_infos = product_infos.filter(category_id=category_id)
+                except ValueError:
+                    pass
+            
+            # Limit results
+            product_infos = product_infos[:limit]
+            
+            if not product_infos.exists():
+                logger.info(f"[SEARCH] No products found for query: '{query}'")
+                return Response({
+                    'success': True,
+                    'message': 'No products found',
+                    'query': query,
+                    'count': 0,
+                    'data': []
+                }, status=status.HTTP_200_OK)
+            
+            # Serialize products
+            products = []
+            for product_info in product_infos:
+                item = product_info.item
+                
+                # Check for ERP enrichment
+                erp_data = erp_map.get(item.item_code)
+                if erp_data:
+                    # Enrich with ERP data
+                    item.item_code = erp_data.get('c_item_code', item.item_code)
+                    item.item_name = erp_data.get('itemName', item.item_name)
+                    item.batch_no = erp_data.get('batchNo', item.batch_no)
+                    item.item_qty_per_box = erp_data.get('itemQtyPerBox', item.item_qty_per_box)
+                    item.mrp = float(erp_data.get('mrp', item.mrp))
+                    item.std_disc = float(erp_data.get('std_disc', item.std_disc))
+                    item.max_disc = float(erp_data.get('max_disc', item.max_disc))
+                    item.expiry_date = parse_date(erp_data.get('expiryDate', item.expiry_date))
+                    item.erp_stock = erp_data.get('stockBalQty', 0)
+                
+                mrp = float(item.mrp)
+                discount = float(item.std_disc)
+                discounted_price = mrp * (1 - discount / 100)
+                
+                # Get all product images (ordered by image_order)
+                product_images = ProductImage.objects.filter(product_info=product_info).order_by('image_order')
+                images_list = [
+                    {
+                        'image': request.build_absolute_uri(img.image.url),
+                        'image_order': img.image_order
+                    }
+                    for img in product_images
+                ]
+                
+                # Get stock quantity (ERP first, then database)
+                stock_qty = 0
+                if hasattr(item, 'erp_stock') and item.erp_stock is not None:
+                    stock_qty = item.erp_stock  # ← From ERP
+                else:
+                    try:
+                        from .models import Stock
+                        stock = Stock.objects.filter(item=item).first()
+                        if stock:
+                            stock_qty = stock.total_bal_ls_qty  # ← From DB
+                    except:
+                        stock_qty = 0
+                
+                # Check if item is in user's cart
+                cart_status = False
+                wishlist_status = False
+                if request.user.is_authenticated:
+                    try:
+                        from .models import CartItem, WishlistItem
+                        cart_status = CartItem.objects.filter(
+                            cart__user=request.user,
+                            product_info=product_info
+                        ).exists()
+                        wishlist_status = WishlistItem.objects.filter(
+                            wishlist__user=request.user,
+                            product_info=product_info
+                        ).exists()
+                    except:
+                        pass
+                
+                # Get brand/category logo
+                brand_logo = ''
+                if product_info.category and product_info.category.icon:
+                    brand_logo = request.build_absolute_uri(product_info.category.icon.url)
+                
+                products.append({
+                    'batchNo': item.batch_no or '',
+                    'c_item_code': item.item_code,
+                    'expiryDate': str(item.expiry_date) if item.expiry_date else None,
+                    'itemName': item.item_name,
+                    'itemQtyPerBox': item.item_qty_per_box,
+                    'max_disc': float(item.max_disc),
+                    'mrp': float(item.mrp),
+                    'std_disc': float(item.std_disc),
+                    'stockBalQty': stock_qty,
+                    'subheading': product_info.subheading or '',
+                    'description': product_info.description or '',
+                    'type_label': product_info.type_label or '',
+                    'brand_id': product_info.category.id if product_info.category else None,
+                    'brand_name': product_info.category.name if product_info.category else '',
+                    'brand_logo': brand_logo,
+                    'images': images_list,
+                    'cart_status': cart_status,
+                    'wishlist_status': wishlist_status
+                })
+            
+            logger.info(f"[SEARCH] Found {len(products)} products for query: '{query}' | Source: {'ERP' if api_key else 'Database'}")
+            
+            # Log search for popular search tracking
+            try:
+                from .models import SearchHistory
+                user = request.user if request.user.is_authenticated else None
+                search_history, created = SearchHistory.objects.get_or_create(
+                    query=query,
+                    defaults={'user': user}
+                )
+                if not created:
+                    search_history.search_count += 1
+                    search_history.updated_at = timezone.now()
+                    search_history.save()
+                logger.info(f"[SEARCH_LOG] Query logged: '{query}' | Count: {search_history.search_count}")
+            except Exception as e:
+                logger.warning(f"[SEARCH_LOG_ERROR] Failed to log search: {str(e)}")
+            
+            return Response({
+                'success': True,
+                'message': f'Found {len(products)} products',
+                'query': query,
+                'count': len(products),
+                'data': products,
+                'source': 'erp' if api_key else 'database'
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"[SEARCH_ERROR] Error searching products: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': f'Error searching products: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PopularSearchView(APIView):
+    """
+    Get popular/frequently searched keywords with products
+    GET: Retrieve top searched keywords with detailed product information
+    
+    Query Parameters:
+        - limit: Max results to return (default: 10)
+        - apiKey: Optional ERP API key for live data enrichment
+    
+    Data Sources:
+        - Without apiKey: Database only (stockBalQty from Stock table)
+        - With apiKey: ERP live data (pricing, stock, expiry)
+    
+    Example: /api/search/popular/?limit=10&apiKey=YOUR_KEY
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        try:
+            limit = int(request.query_params.get('limit', 10))
+            
+            # Import SearchHistory model
+            from .models import SearchHistory
+            from django.db.models import Q
+            
+            # Get top searched queries
+            popular_searches = SearchHistory.objects.all().order_by('-search_count')[:limit]
+            
+            if not popular_searches.exists():
+                logger.info("[POPULAR_SEARCH] No search history available")
+                return Response({
+                    'success': True,
+                    'message': 'No popular searches available',
+                    'count': 0,
+                    'data': []
+                }, status=status.HTTP_200_OK)
+            
+            # [UPDATED] Fetch ERP data with auto-generated token
+            erp_map = {}
+            erp_items = fetch_all_items_from_erp()
+            erp_map = {item.get('c_item_code'): item for item in erp_items} if erp_items else {}
+            if erp_map:
+                logger.info(f"[POPULAR_SEARCH] Fetched {len(erp_map)} items from ERP with auto-token")
+            
+            # Serialize popular searches with products
+            searches = []
+            for search in popular_searches:
+                query = search.query
+                
+                # Get products matching this popular search query
+                product_infos = ProductInfo.objects.select_related('item', 'category').filter(
+                    Q(item__item_name__icontains=query) |
+                    Q(description__icontains=query) |
+                    Q(type_label__icontains=query) |
+                    Q(category__name__icontains=query)
+                ).distinct()[:20]  # Limit to 20 products per search
+                
+                # Serialize products
+                products = []
+                for product_info in product_infos:
+                    item = product_info.item
+                    
+                    # Check for ERP enrichment
+                    erp_data = erp_map.get(item.item_code)
+                    if erp_data:
+                        # Enrich with ERP data (complete product info)
+                        item.item_code = erp_data.get('c_item_code', item.item_code)
+                        item.item_name = erp_data.get('itemName', item.item_name)
+                        item.batch_no = erp_data.get('batchNo', item.batch_no)
+                        item.item_qty_per_box = erp_data.get('itemQtyPerBox', item.item_qty_per_box)
+                        item.mrp = float(erp_data.get('mrp', item.mrp))
+                        item.std_disc = float(erp_data.get('std_disc', item.std_disc))
+                        item.max_disc = float(erp_data.get('max_disc', item.max_disc))
+                        item.expiry_date = parse_date(erp_data.get('expiryDate', item.expiry_date))
+                        item.erp_stock = erp_data.get('stockBalQty', 0)
+                    
+                    mrp = float(item.mrp)
+                    discount = float(item.std_disc)
+                    discounted_price = mrp * (1 - discount / 100)
+                    
+                    # Get all product images
+                    product_images = ProductImage.objects.filter(product_info=product_info).order_by('image_order')
+                    images_list = [
+                        {
+                            'image': request.build_absolute_uri(img.image.url),
+                            'image_order': img.image_order
+                        }
+                        for img in product_images
+                    ]
+                    
+                    # Get stock quantity (ERP first, then database)
+                    stock_qty = 0
+                    if hasattr(item, 'erp_stock') and item.erp_stock is not None:
+                        stock_qty = item.erp_stock  # ← From ERP
+                    else:
+                        try:
+                            from .models import Stock
+                            stock = Stock.objects.filter(item=item).first()
+                            if stock:
+                                stock_qty = stock.total_bal_ls_qty  # ← From DB
+                        except:
+                            stock_qty = 0
+                    
+                    # Check cart and wishlist status
+                    cart_status = False
+                    wishlist_status = False
+                    if request.user.is_authenticated:
+                        try:
+                            from .models import CartItem, WishlistItem
+                            cart_status = CartItem.objects.filter(
+                                cart__user=request.user,
+                                product_info=product_info
+                            ).exists()
+                            wishlist_status = WishlistItem.objects.filter(
+                                wishlist__user=request.user,
+                                product_info=product_info
+                            ).exists()
+                        except:
+                            pass
+                    
+                    # Get brand logo
+                    brand_logo = ''
+                    if product_info.category and product_info.category.icon:
+                        brand_logo = request.build_absolute_uri(product_info.category.icon.url)
+                    
+                    products.append({
+                        'batchNo': item.batch_no or '',
+                        'c_item_code': item.item_code,
+                        'expiryDate': str(item.expiry_date) if item.expiry_date else None,
+                        'itemName': item.item_name,
+                        'itemQtyPerBox': item.item_qty_per_box,
+                        'max_disc': float(item.max_disc),
+                        'mrp': float(item.mrp),
+                        'std_disc': float(item.std_disc),
+                        'stockBalQty': stock_qty,
+                        'subheading': product_info.subheading or '',
+                        'description': product_info.description or '',
+                        'type_label': product_info.type_label or '',
+                        'brand_id': product_info.category.id if product_info.category else None,
+                        'brand_name': product_info.category.name if product_info.category else '',
+                        'brand_logo': brand_logo,
+                        'images': images_list,
+                        'cart_status': cart_status,
+                        'wishlist_status': wishlist_status
+                    })
+                
+                searches.append({
+                    'query': query,
+                    'searchCount': search.search_count,
+                    'lastSearched': search.updated_at.isoformat(),
+                    'products': products
+                })
+            
+            logger.info(f"[POPULAR_SEARCH] Retrieved {len(searches)} popular searches with products | Source: ERP (auto-token)")
+            
+            return Response({
+                'success': True,
+                'message': f'Found {len(searches)} popular searches',
+                'count': len(searches),
+                'data': searches,
+                'source': 'erp'
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"[POPULAR_SEARCH_ERROR] Error fetching popular searches: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': f'Error fetching popular searches: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class LogSearchView(APIView):
+    """
+    Log a search query for popular search tracking
+    POST: Save search query to database (increments count if already exists)
+    
+    Request Body:
+        {
+            "query": "paracetamol"
+        }
+    
+    Example: POST /api/log-search/
+    """
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            query = request.data.get('query', '').strip()
+            user = request.user if request.user.is_authenticated else None
+            
+            if not query:
+                return Response({
+                    'success': False,
+                    'message': 'Query parameter is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if len(query) < 2:
+                return Response({
+                    'success': False,
+                    'message': 'Search query must be at least 2 characters'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Import SearchHistory model
+            from .models import SearchHistory
+            
+            # Get or create search history entry
+            search_history, created = SearchHistory.objects.get_or_create(
+                query=query,
+                defaults={'user': user}
+            )
+            
+            # If already exists, increment count
+            if not created:
+                search_history.search_count += 1
+                search_history.updated_at = timezone.now()
+                search_history.save()
+            
+            logger.info(f"[LOG_SEARCH] Query: '{query}' | User: {user.username if user else 'Anonymous'} | Count: {search_history.search_count}")
+            
+            return Response({
+                'success': True,
+                'message': 'Search logged successfully',
+                'query': query,
+                'searchCount': search_history.search_count
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"[LOG_SEARCH_ERROR] Error logging search: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': f'Error logging search: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ==================== ERP FETCH UTILITIES ====================
 
-def fetch_item_from_erp(item_code, api_key=None):
+def fetch_item_from_erp(item_code):
     """
     Fetch a specific item from ERP endpoint
     Returns item data dict or None if not found
     ALWAYS FRESH - no cache used here
+    [UPDATED] Now uses auto-generated token automatically
     """
     try:
+        from .erp_token_service import get_erp_token_for_request
+        api_key = get_erp_token_for_request()
+        if not api_key:
+            logger.error("Could not get auto-generated token")
+            return None
+        
         # Fetch all items from ERP
         erp_url = f"{settings.ERP_BASE_URL}/ws_c2_services_get_master_data"
-        params = {'apiKey': api_key} if api_key else {}
+        params = {'apiKey': api_key}
         
         response = requests.get(erp_url, params=params, timeout=10)
         response.raise_for_status()
@@ -2150,6 +3064,64 @@ def fetch_item_from_erp(item_code, api_key=None):
         
     except Exception as e:
         logger.error(f"Error fetching from ERP: {str(e)}")
+        return None
+
+
+def fetch_all_items_from_erp():
+    """
+    Helper function: Fetch all items from ERP in one call
+    Used by recommendation views to enrich data with live pricing/stock
+    
+    Returns: List of item dicts from ERP, or empty list if error
+    Usage: Used in SimilarProductsView, FrequentlyBoughtTogetherView, TopSellingProductsView
+    [UPDATED] Now uses auto-generated token automatically
+    """
+    try:
+        from .erp_token_service import get_erp_token_for_request
+        api_key = get_erp_token_for_request()
+        if not api_key:
+            logger.error("[ERP_ERROR] Could not get auto-generated token")
+            return []
+        
+        erp_url = f"{settings.ERP_BASE_URL}/ws_c2_services_get_master_data"
+        params = {'apiKey': api_key}
+        
+        logger.info(f"[ERP_FETCH_ALL] Fetching all items from ERP: {erp_url}")
+        
+        response = requests.get(erp_url, params=params, timeout=15)
+        response.raise_for_status()
+        
+        data = response.json()
+        if data.get('code') != '200':
+            logger.error(f"[ERP_ERROR] ERP returned non-200 code: {data.get('code')}")
+            return []
+        
+        items = data.get('data', [])
+        logger.info(f"[ERP_FETCH_ALL] Successfully fetched {len(items)} items from ERP")
+        return items
+        
+    except requests.exceptions.Timeout:
+        logger.error("[ERP_ERROR] ERP request timed out (15 seconds)")
+        return []
+    except requests.exceptions.ConnectionError:
+        logger.error("[ERP_ERROR] Failed to connect to ERP server")
+        return []
+    except Exception as e:
+        logger.error(f"[ERP_ERROR] Error fetching all items from ERP: {str(e)}")
+        return []
+
+
+def parse_date(date_string):
+    """
+    Helper: Parse date string from ERP (format: YYYY-MM-DD)
+    Returns: date object or None
+    """
+    try:
+        if not date_string:
+            return None
+        from datetime import datetime
+        return datetime.strptime(str(date_string), '%Y-%m-%d').date()
+    except:
         return None
 
 
@@ -2182,16 +3154,17 @@ def update_itemmaster_cache(item_code, item_data):
         return None
 
 
-def get_item_stock_status(item_code, api_key=None):
+def get_item_stock_status(item_code):
     """
     Fetch stock availability status for item from ERP
     CRITICAL CHECKS:
     - Stock quantity > 0
     - Expiry date not passed
     Always fresh - no caching
+    [UPDATED] Now uses auto-generated token automatically
     """
     try:
-        item_data = fetch_item_from_erp(item_code, api_key)
+        item_data = fetch_item_from_erp(item_code)
         if not item_data:
             return {'available': False, 'status': 'Not found in ERP', 'qty': 0, 'is_expired': False, 'expiry_date': None}
         
@@ -2233,15 +3206,16 @@ def get_item_stock_status(item_code, api_key=None):
 # ================== ADDRESS VIEWS ==================
 
 class ListAddressesView(APIView):
-    """List all delivery addresses for authenticated user"""
-    permission_classes = [IsAuthenticated]
+    """List all delivery addresses for user"""
+    permission_classes = [AllowAny]
     
-    def get(self, request):
+    def get(self, request, user_id):
         """Get all addresses"""
         try:
-            addresses = Address.objects.filter(user=request.user, is_active=True).order_by('-is_default', '-created_at')
+            user = get_object_or_404(User, id=user_id)
+            addresses = Address.objects.filter(user=user, is_active=True).order_by('-is_default', '-created_at')
             serializer = AddressListSerializer(addresses, many=True)
-            logger.info(f"[ADDRESS_LIST] User {request.user.username} retrieved {len(addresses)} addresses")
+            logger.info(f"[ADDRESS_LIST] User {user_id} retrieved {len(addresses)} addresses")
             return Response({
                 'success': True,
                 'count': len(addresses),
@@ -2249,7 +3223,7 @@ class ListAddressesView(APIView):
                 'message': 'Addresses retrieved successfully'
             }, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.error(f"[ADDRESS_ERROR] Error listing addresses for user {request.user.username}: {str(e)}")
+            logger.error(f"[ADDRESS_ERROR] Error listing addresses for user {user_id}: {str(e)}")
             return Response({
                 'success': False,
                 'message': f'Error retrieving addresses: {str(e)}'
@@ -2258,16 +3232,33 @@ class ListAddressesView(APIView):
 
 class CreateAddressView(APIView):
     """Add a new delivery address"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
-    def post(self, request):
+    def post(self, request, user_id):
         """Create new address"""
         try:
-            serializer = CreateAddressSerializer(data=request.data)
+            # Check if Content-Type is incorrect and try to parse it anyway
+            content_type = request.META.get('CONTENT_TYPE', '')
+            request_data = request.data
+            
+            if 'text/plain' in content_type:
+                # Try to parse the body as JSON if Content-Type is text/plain
+                try:
+                    request_data = json.loads(request.body.decode('utf-8'))
+                    logger.info(f"[ADDRESS_CREATE] Parsed text/plain request body as JSON for user {user_id}")
+                except (json.JSONDecodeError, UnicodeDecodeError) as parse_err:
+                    logger.error(f"[ADDRESS_ERROR] Could not parse text/plain request body for user {user_id}: {str(parse_err)}")
+                    return Response({
+                        'success': False,
+                        'message': 'Invalid Content-Type. Please set Content-Type to application/json and ensure body is valid JSON'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            user = get_object_or_404(User, id=user_id)
+            serializer = CreateAddressSerializer(data=request_data)
             if serializer.is_valid():
                 # Check if user already has this exact address
                 existing = Address.objects.filter(
-                    user=request.user,
+                    user=user,
                     phone=serializer.validated_data['phone'],
                     pincode=serializer.validated_data['pincode'],
                     locality=serializer.validated_data.get('locality', '')
@@ -2280,9 +3271,10 @@ class CreateAddressView(APIView):
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
                 # Create new address
-                address = serializer.save(user=request.user)
+                address = serializer.save(user=user)
                 response_serializer = AddressListSerializer(address)
-                logger.info(f"[ADDRESS_CREATE] User {request.user.username} added address: {address.name} ({address.address_type})")
+                gps_info = f"GPS: ({address.latitude}, {address.longitude})" if address.latitude and address.longitude else "No GPS"
+                logger.info(f"[ADDRESS_CREATE] User {user_id} added address: {address.name} ({address.address_type}) - {gps_info}")
                 
                 return Response({
                     'success': True,
@@ -2296,7 +3288,7 @@ class CreateAddressView(APIView):
                     'errors': serializer.errors
                 }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"[ADDRESS_ERROR] Error creating address for user {request.user.username}: {str(e)}")
+            logger.error(f"[ADDRESS_ERROR] Error creating address for user {user_id}: {str(e)}")
             return Response({
                 'success': False,
                 'message': f'Error creating address: {str(e)}'
@@ -2305,13 +3297,14 @@ class CreateAddressView(APIView):
 
 class UpdateAddressView(APIView):
     """Update an existing delivery address"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
-    def put(self, request, address_id):
+    def put(self, request, user_id, address_id):
         """Update address"""
         try:
-            address = Address.objects.get(id=address_id, user=request.user)
-        except Address.DoesNotExist:
+            user = get_object_or_404(User, id=user_id)
+            address = get_object_or_404(Address, id=address_id, user=user)
+        except:
             return Response({
                 'success': False,
                 'message': 'Address not found'
@@ -2322,7 +3315,8 @@ class UpdateAddressView(APIView):
             if serializer.is_valid():
                 address = serializer.save()
                 response_serializer = AddressListSerializer(address)
-                logger.info(f"[ADDRESS_UPDATE] User {request.user.username} updated address ID {address_id}")
+                gps_info = f"GPS: ({address.latitude}, {address.longitude})" if address.latitude and address.longitude else "No GPS"
+                logger.info(f"[ADDRESS_UPDATE] User {user_id} updated address ID {address_id} - {gps_info}")
                 
                 return Response({
                     'success': True,
@@ -2336,7 +3330,7 @@ class UpdateAddressView(APIView):
                     'errors': serializer.errors
                 }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"[ADDRESS_ERROR] Error updating address {address_id} for user {request.user.username}: {str(e)}")
+            logger.error(f"[ADDRESS_ERROR] Error updating address {address_id} for user {user_id}: {str(e)}")
             return Response({
                 'success': False,
                 'message': f'Error updating address: {str(e)}'
@@ -2345,13 +3339,14 @@ class UpdateAddressView(APIView):
 
 class DeleteAddressView(APIView):
     """Delete a delivery address (soft delete)"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
-    def delete(self, request, address_id):
+    def delete(self, request, user_id, address_id):
         """Delete address"""
         try:
-            address = Address.objects.get(id=address_id, user=request.user)
-        except Address.DoesNotExist:
+            user = get_object_or_404(User, id=user_id)
+            address = get_object_or_404(Address, id=address_id, user=user)
+        except:
             return Response({
                 'success': False,
                 'message': 'Address not found'
@@ -2360,14 +3355,14 @@ class DeleteAddressView(APIView):
         try:
             address.is_active = False
             address.save()
-            logger.info(f"[ADDRESS_DELETE] User {request.user.username} deleted address ID {address_id}")
+            logger.info(f"[ADDRESS_DELETE] User {user_id} deleted address ID {address_id}")
             
             return Response({
                 'success': True,
                 'message': 'Address deleted successfully'
             }, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.error(f"[ADDRESS_ERROR] Error deleting address {address_id} for user {request.user.username}: {str(e)}")
+            logger.error(f"[ADDRESS_ERROR] Error deleting address {address_id} for user {user_id}: {str(e)}")
             return Response({
                 'success': False,
                 'message': f'Error deleting address: {str(e)}'
@@ -2376,13 +3371,14 @@ class DeleteAddressView(APIView):
 
 class SetDefaultAddressView(APIView):
     """Set an address as default"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
-    def post(self, request, address_id):
+    def post(self, request, user_id, address_id):
         """Set address as default"""
         try:
-            address = Address.objects.get(id=address_id, user=request.user)
-        except Address.DoesNotExist:
+            user = get_object_or_404(User, id=user_id)
+            address = get_object_or_404(Address, id=address_id, user=user)
+        except:
             return Response({
                 'success': False,
                 'message': 'Address not found'
@@ -2390,11 +3386,11 @@ class SetDefaultAddressView(APIView):
         
         try:
             # Remove default from other addresses
-            Address.objects.filter(user=request.user, is_default=True).exclude(id=address_id).update(is_default=False)
+            Address.objects.filter(user=user, is_default=True).exclude(id=address_id).update(is_default=False)
             address.is_default = True
             address.save()
             response_serializer = AddressListSerializer(address)
-            logger.info(f"[ADDRESS_DEFAULT] User {request.user.username} set address ID {address_id} as default")
+            logger.info(f"[ADDRESS_DEFAULT] User {user_id} set address ID {address_id} as default")
             
             return Response({
                 'success': True,
@@ -2402,7 +3398,7 @@ class SetDefaultAddressView(APIView):
                 'data': response_serializer.data
             }, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.error(f"[ADDRESS_ERROR] Error setting default address {address_id} for user {request.user.username}: {str(e)}")
+            logger.error(f"[ADDRESS_ERROR] Error setting default address {address_id} for user {user_id}: {str(e)}")
             return Response({
                 'success': False,
                 'message': f'Error setting default address: {str(e)}'
@@ -2516,8 +3512,27 @@ class CheckoutWithAddressView(APIView):
                 # Clear cart
                 cart.items.all().delete()
                 
-                logger.info(f"[ORDER_CHECKOUT] User {request.user.username} completed checkout with address ID {address_id}")
+                # Get payment method from request
+                payment_method = serializer.validated_data.get('payment_method', 'RAZORPAY')
+                
+                logger.info(f"[ORDER_CHECKOUT] User {request.user.username} completed checkout with address ID {address_id} - Payment Method: {payment_method}")
                 logger.info(f"[ORDER_CREATED] Order {sales_order.order_id} created for {address.name} at {address.get_full_address()}")
+                
+                # Prepare payment instructions based on payment method
+                payment_instructions = {
+                    'RAZORPAY': {
+                        'endpoint': '/api/payment/initiate/',
+                        'method': 'POST',
+                        'description': 'Call initiate endpoint to get Razorpay order details',
+                        'next_step': 'Open Razorpay checkout modal with payment details'
+                    },
+                    'COD': {
+                        'endpoint': '/api/payment/cod/initiate/',
+                        'method': 'POST',
+                        'description': 'Call COD initiate endpoint to confirm COD payment',
+                        'next_step': 'Payment will be collected at delivery'
+                    }
+                }
                 
                 return Response({
                     'success': True,
@@ -2526,7 +3541,9 @@ class CheckoutWithAddressView(APIView):
                         'order_id': sales_order.order_id,
                         'delivery_address': AddressListSerializer(address).data,
                         'total_amount': float(total_amount),
-                        'item_count': len(cart_items)
+                        'item_count': len(cart_items),
+                        'payment_method': payment_method,
+                        'payment_instructions': payment_instructions.get(payment_method, payment_instructions['RAZORPAY'])
                     }
                 }, status=status.HTTP_201_CREATED)
                 
@@ -2542,9 +3559,9 @@ class CheckoutWithAddressView(APIView):
 
 class DetectCurrentLocationView(APIView):
     """Detect user's current location and reverse geocode to address"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
-    def post(self, request):
+    def post(self, request, user_id):
         """
         Detect location from GPS coordinates and reverse geocode to address
         
@@ -2575,7 +3592,7 @@ class DetectCurrentLocationView(APIView):
             address_data = reverse_geocode(latitude, longitude)
             
             response_serializer = LocationAddressResponseSerializer(address_data)
-            logger.info(f"[LOCATION_DETECT] User {request.user.username} detected location at ({latitude}, {longitude})")
+            logger.info(f"[LOCATION_DETECT] User {user_id} detected location at ({latitude}, {longitude})")
             
             return Response({
                 'success': True,
@@ -2584,14 +3601,14 @@ class DetectCurrentLocationView(APIView):
             }, status=status.HTTP_200_OK)
             
         except GeocodingException as e:
-            logger.warning(f"[LOCATION_ERROR] Geocoding failed for user {request.user.username}: {str(e)}")
+            logger.warning(f"[LOCATION_ERROR] Geocoding failed for user {user_id}: {str(e)}")
             return Response({
                 'success': False,
                 'message': f'Could not detect address from location: {str(e)}'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         except Exception as e:
-            logger.error(f"[LOCATION_ERROR] Error detecting location for user {request.user.username}: {str(e)}")
+            logger.error(f"[LOCATION_ERROR] Error detecting location for user {user_id}: {str(e)}")
             return Response({
                 'success': False,
                 'message': f'Error detecting location: {str(e)}'
@@ -2600,9 +3617,9 @@ class DetectCurrentLocationView(APIView):
 
 class ConfirmLocationAddressView(APIView):
     """Confirm detected location and save as address"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
-    def post(self, request):
+    def post(self, request, user_id):
         """
         Confirm detected location and save as address
         
@@ -2635,9 +3652,10 @@ class ConfirmLocationAddressView(APIView):
             # Check for duplicate address
             latitude = serializer.validated_data['latitude']
             longitude = serializer.validated_data['longitude']
+            user = get_object_or_404(User, id=user_id)
             
             existing = Address.objects.filter(
-                user=request.user,
+                user=user,
                 phone=serializer.validated_data['phone'],
                 pincode=serializer.validated_data['pincode'],
                 latitude=latitude,
@@ -2651,10 +3669,10 @@ class ConfirmLocationAddressView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Save address with GPS data
-            address = serializer.save(user=request.user, is_gps_verified=True)
+            address = serializer.save(user=user, is_gps_verified=True)
             
             response_serializer = AddressListSerializer(address)
-            logger.info(f"[ADDRESS_GPS_SAVE] User {request.user.username} saved GPS-detected address: {address.name} ({latitude}, {longitude})")
+            logger.info(f"[ADDRESS_GPS_SAVE] User {user_id} saved GPS-detected address: {address.name} ({latitude}, {longitude})")
             
             return Response({
                 'success': True,
@@ -2663,7 +3681,7 @@ class ConfirmLocationAddressView(APIView):
             }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
-            logger.error(f"[LOCATION_ERROR] Error saving location address for user {request.user.username}: {str(e)}")
+            logger.error(f"[LOCATION_ERROR] Error saving location address for user {user_id}: {str(e)}")
             return Response({
                 'success': False,
                 'message': f'Error saving address: {str(e)}'
@@ -2672,9 +3690,9 @@ class ConfirmLocationAddressView(APIView):
 
 class NearbyAddressesView(APIView):
     """Find addresses near current location"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
-    def post(self, request):
+    def post(self, request, user_id):
         """
         Find user's saved addresses near current location
         
@@ -2689,6 +3707,7 @@ class NearbyAddressesView(APIView):
             latitude = request.data.get('latitude')
             longitude = request.data.get('longitude')
             radius_km = float(request.data.get('radius_km', 5))
+            user = get_object_or_404(User, id=user_id)
             
             # Validate coordinates
             validate_coordinates(latitude, longitude)
@@ -2700,7 +3719,7 @@ class NearbyAddressesView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Get all user's addresses
-            addresses = Address.objects.filter(user=request.user, is_active=True)
+            addresses = Address.objects.filter(user=user, is_active=True)
             
             # Import geocoding utility
             from .geocoding import calculate_distance
@@ -2729,7 +3748,7 @@ class NearbyAddressesView(APIView):
                 for item in nearby_addresses
             ]
             
-            logger.info(f"[LOCATION_NEARBY] User {request.user.username} found {len(nearby_addresses)} nearby addresses")
+            logger.info(f"[LOCATION_NEARBY] User {user_id} found {len(nearby_addresses)} nearby addresses")
             
             return Response({
                 'success': True,
@@ -2745,14 +3764,14 @@ class NearbyAddressesView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         except GeocodingException as e:
-            logger.warning(f"[LOCATION_ERROR] Error in nearby search for user {request.user.username}: {str(e)}")
+            logger.warning(f"[LOCATION_ERROR] Error in nearby search for user {user_id}: {str(e)}")
             return Response({
                 'success': False,
                 'message': f'Location error: {str(e)}'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         except Exception as e:
-            logger.error(f"[LOCATION_ERROR] Error finding nearby addresses for user {request.user.username}: {str(e)}")
+            logger.error(f"[LOCATION_ERROR] Error finding nearby addresses for user {user_id}: {str(e)}")
             return Response({
                 'success': False,
                 'message': f'Error searching nearby addresses: {str(e)}'
@@ -2854,4 +3873,613 @@ class OrderConfirmationPreviewView(APIView):
             return Response({
                 'success': False,
                 'message': f'Error generating order preview: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ==================== RECOMMENDATION VIEWS ====================
+
+class FrequentlyBoughtTogetherView(APIView):
+    """
+    Get products frequently bought together with a specific item (with ERP enrichment)
+    GET: Fetch products often purchased with the provided item based on order history
+    
+    Query Parameters:
+        - itemCode: Item code to get frequently bought together items (required)
+        - limit: Max number of recommendations (default: 5)
+        - days: Look back period in days (default: 90)
+        - apiKey: Optional API key to fetch fresh data from ERP
+    
+    Example: /api/recommendations/frequently-bought/?itemCode=INJ001&limit=5&days=90&apiKey=xyz
+    
+    Data Flow:
+    1. Query database: Find co-purchased items from order history
+    2. Rank by co-purchase frequency
+    3. Fetch from ERP: Get live pricing, stock, expiry for each
+    4. Return results with fresh ERP data
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        try:
+            item_code = request.query_params.get('itemCode')
+            limit = int(request.query_params.get('limit', 5))
+            days = int(request.query_params.get('days', 90))
+            # [UPDATED] Token now auto-generated - no need for apiKey from request
+            
+            if not item_code:
+                return Response({
+                    'success': False,
+                    'message': 'itemCode query parameter is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # ✅ Step 1: Get the base item
+            try:
+                base_item = ItemMaster.objects.get(item_code=item_code)
+                base_product_info = ProductInfo.objects.get(item=base_item)
+            except ItemMaster.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': f'Item with code {item_code} not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            except ProductInfo.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': f'Product information not available for {item_code}'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # ✅ Step 2: Query database for co-purchased items
+            from django.utils import timezone
+            from datetime import timedelta
+            from django.db.models import Count
+            
+            start_date = timezone.now() - timedelta(days=days)
+            
+            orders_with_item = SalesOrder.objects.filter(
+                items__item_code=item_code,
+                created_at__gte=start_date
+            ).distinct()
+            
+            if not orders_with_item.exists():
+                logger.info(f"[FREQUENTLY_BOUGHT] No order history for item {item_code}")
+                return Response({
+                    'success': True,
+                    'data': {
+                        'baseProductCode': item_code,
+                        'baseProductName': base_item.item_name,
+                        'frequentlyBoughtWith': [],
+                        'totalPurchaseCount': 0,
+                        'source': 'database'
+                    }
+                }, status=status.HTTP_200_OK)
+            
+            # Get all items in these orders (except the base item)
+            frequently_bought_counts = SalesOrderItem.objects.filter(
+                sales_order__in=orders_with_item
+            ).exclude(
+                item_code=item_code
+            ).values('item_code').annotate(
+                co_purchase_count=Count('id')
+            ).order_by('-co_purchase_count')[:limit]
+            
+            # Get the actual items
+            frequently_bought_item_codes = [item['item_code'] for item in frequently_bought_counts]
+            frequently_bought_items = ItemMaster.objects.filter(
+                item_code__in=frequently_bought_item_codes
+            )
+            
+            # Sort by co-purchase count
+            item_count_map = {item['item_code']: item['co_purchase_count'] for item in frequently_bought_counts}
+            frequently_bought_items = sorted(
+                frequently_bought_items,
+                key=lambda x: item_count_map.get(x.item_code, 0),
+                reverse=True
+            )
+            
+            # ✅ Step 3: Fetch fresh data from ERP with auto-generated token
+            erp_items = fetch_all_items_from_erp()
+            erp_map = {item.get('c_item_code'): item for item in erp_items} if erp_items else {}
+            
+            products_data = []
+            for product in frequently_bought_items:
+                # Enrich with ERP data if available
+                erp_data = erp_map.get(product.item_code)
+                if erp_data:
+                    # Enrich with ERP data (complete product info)
+                    product.item_code = erp_data.get('c_item_code', product.item_code)
+                    product.item_name = erp_data.get('itemName', product.item_name)
+                    product.batch_no = erp_data.get('batchNo', product.batch_no)
+                    product.item_qty_per_box = erp_data.get('itemQtyPerBox', product.item_qty_per_box)
+                    product.mrp = float(erp_data.get('mrp', product.mrp))
+                    product.std_disc = float(erp_data.get('std_disc', product.std_disc))
+                    product.max_disc = float(erp_data.get('max_disc', product.max_disc))
+                    product.expiry_date = parse_date(erp_data.get('expiryDate', product.expiry_date))
+                    product.erp_stock = erp_data.get('stockBalQty', 0)
+                
+                products_data.append(product)
+            
+            # ✅ Step 4: Serialize results
+            serializer = ProductRecommendationSerializer(
+                products_data,
+                many=True,
+                context={'request': request}
+            )
+            
+            logger.info(f"[FREQUENTLY_BOUGHT] Found {len(products_data)} frequently bought items with {item_code} | Orders: {orders_with_item.count()} | Source: {'ERP' if api_key else 'database'}")
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'baseProductCode': item_code,
+                    'baseProductName': base_item.item_name,
+                    'frequentlyBoughtWith': serializer.data,
+                    'totalPurchaseCount': orders_with_item.count(),
+                    'source': 'erp' if api_key else 'database',
+                    'lookbackDays': days,
+                    'lastFetched': timezone.now().isoformat()
+                }
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"[RECOMMENDATION_ERROR] Error fetching frequently bought together: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': f'Error fetching recommendations: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TopSellingProductsView(APIView):
+    """
+    Get top selling products across all categories (with ERP enrichment)
+    GET: Fetch best-selling products based on sales volume
+    
+    Query Parameters:
+        - period: Time period ('weekly', 'monthly', 'all-time') (default: 'monthly')
+        - limit: Max number of top products (default: 10)
+        - category: Filter by category ID (optional)
+        - apiKey: Optional API key to fetch fresh data from ERP
+    
+    Example: /api/recommendations/top-selling/?period=monthly&limit=10&apiKey=xyz
+    
+    Data Flow:
+    1. Query database: Aggregate sales volume by item_code
+    2. Rank by total quantity sold in period
+    3. Fetch from ERP: Get live pricing, stock, expiry for each
+    4. Return top sellers with fresh ERP data
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        try:
+            period = request.query_params.get('period', 'monthly').lower()
+            limit = int(request.query_params.get('limit', 10))
+            category_id = request.query_params.get('category')
+            # [UPDATED] Token now auto-generated - no need for apiKey from request
+            
+            if period not in ['weekly', 'monthly', 'all-time']:
+                return Response({
+                    'success': False,
+                    'message': "period must be one of: 'weekly', 'monthly', 'all-time'"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # ✅ Step 1: Calculate date range based on period
+            from django.utils import timezone
+            from datetime import timedelta
+            from django.db.models import Sum
+            
+            now = timezone.now()
+            if period == 'weekly':
+                start_date = now - timedelta(days=7)
+            elif period == 'monthly':
+                start_date = now - timedelta(days=30)
+            else:  # all-time
+                start_date = now - timedelta(days=365*10)  # 10 years
+            
+            # ✅ Step 2: Query database for sales aggregation
+            sales_items = SalesOrderItem.objects.filter(
+                sales_order__created_at__gte=start_date
+            ).values('item_code').annotate(
+                total_qty=Sum('total_loose_qty')
+            ).order_by('-total_qty')[:limit]
+            
+            if not sales_items.exists():
+                logger.info(f"[TOP_SELLING] No sales data for period {period}")
+                return Response({
+                    'success': True,
+                    'data': {
+                        'period': period,
+                        'totalCount': 0,
+                        'products': [],
+                        'source': 'database'
+                    }
+                }, status=status.HTTP_200_OK)
+            
+            # Get the actual items
+            top_item_codes = [item['item_code'] for item in sales_items]
+            top_items = ItemMaster.objects.filter(item_code__in=top_item_codes)
+            
+            # Filter by category if provided
+            if category_id:
+                top_items = top_items.filter(product_info__category_id=category_id)
+            
+            # Sort by sales quantity
+            item_qty_map = {item['item_code']: item['total_qty'] for item in sales_items}
+            top_items = sorted(
+                top_items,
+                key=lambda x: item_qty_map.get(x.item_code, 0),
+                reverse=True
+            )[:limit]
+            
+            # ✅ Step 3: Fetch fresh data from ERP with auto-generated token
+            erp_items = fetch_all_items_from_erp()
+            erp_map = {item.get('c_item_code'): item for item in erp_items} if erp_items else {}
+            
+            products_data = []
+            for product in top_items:
+                # Add sales volume from database
+                product.sales_volume_qty = item_qty_map.get(product.item_code, 0)
+                
+                # Enrich with ERP data if available
+                erp_data = erp_map.get(product.item_code)
+                if erp_data:
+                    # Enrich with ERP data (complete product info)
+                    product.item_code = erp_data.get('c_item_code', product.item_code)
+                    product.item_name = erp_data.get('itemName', product.item_name)
+                    product.batch_no = erp_data.get('batchNo', product.batch_no)
+                    product.item_qty_per_box = erp_data.get('itemQtyPerBox', product.item_qty_per_box)
+                    product.mrp = float(erp_data.get('mrp', product.mrp))
+                    product.std_disc = float(erp_data.get('std_disc', product.std_disc))
+                    product.max_disc = float(erp_data.get('max_disc', product.max_disc))
+                    product.expiry_date = parse_date(erp_data.get('expiryDate', product.expiry_date))
+                    product.erp_stock = erp_data.get('stockBalQty', 0)
+                
+                products_data.append(product)
+            
+            # ✅ Step 4: Serialize results
+            serializer = ProductRecommendationSerializer(
+                products_data,
+                many=True,
+                context={'request': request}
+            )
+            
+            logger.info(f"[TOP_SELLING] Retrieved {len(products_data)} top selling products for period {period} | Source: {'ERP' if api_key else 'database'}")
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'period': period,
+                    'periodDays': 7 if period == 'weekly' else 30 if period == 'monthly' else 3650,
+                    'totalCount': len(products_data),
+                    'products': serializer.data,
+                    'message': f'Top selling products for {period}',
+                    'source': 'erp' if api_key else 'database',
+                    'lastFetched': timezone.now().isoformat()
+                }
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"[RECOMMENDATION_ERROR] Error fetching top selling products: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': f'Error fetching top selling products: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PersonalizedRecommendationsView(APIView):
+    """
+    Get personalized recommendations based on user's purchase & search history
+    GET: Fetch products recommended based on user's buying pattern
+    
+    URL Parameters:
+        - user_id: User ID (required)
+    
+    Query Parameters:
+        - limit: Max number of recommendations (default: 15)
+        - apiKey: Optional API key to fetch fresh data from ERP
+    
+    Example: /api/recommendations/for-you/88/?limit=15&apiKey=xyz
+    
+    Algorithm:
+    1. Get user's purchase history (categories they bought from)
+    2. Get user's search history (keywords they searched)
+    3. Find similar products in those categories
+    4. Rank by category frequency + popularity + stock
+    5. Fetch fresh ERP data
+    6. Return personalized recommendations
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request, user_id):
+        try:
+            limit = int(request.query_params.get('limit', 15))
+            # [UPDATED] Token now auto-generated - no need for apiKey from request
+            
+            # Validate user exists
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': f'User with ID {user_id} not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # ✅ Step 1: Get user's purchase history (categories & items already bought)
+            user_purchases = SalesOrderItem.objects.filter(
+                sales_order__user_id=user_id
+            ).values_list('item_code', flat=True).distinct()
+            
+            purchased_products = ProductInfo.objects.filter(
+                item__item_code__in=user_purchases
+            ).values_list('category_id', flat=True).distinct()
+            
+            # ✅ Step 2: Get user's search history (keywords they searched)
+            from .models import SearchHistory
+            user_searches = SearchHistory.objects.filter(
+                user_id=user_id
+            ).order_by('-search_count')[:5].values_list('query', flat=True)
+            
+            search_keywords = list(user_searches) if user_searches else []
+            logger.info(f"[PERSONALIZED] User {user_id} | Purchases: {len(purchased_products)} categories | Searches: {len(search_keywords)} keywords")
+            
+            # ✅ Step 3: Find products in user's favorite categories (similar to what they bought)
+            from django.db.models import Q, Count
+            
+            recommended_products = ProductInfo.objects.none()
+            fallback_source = 'personalized'
+            fallback_reason = 'Based on your purchases and searches'
+            
+            # If user has purchase/search history, use personalized recommendations
+            if purchased_products.exists() or search_keywords:
+                recommended_products = ProductInfo.objects.filter(
+                    category_id__in=purchased_products
+                ).exclude(
+                    item__item_code__in=user_purchases  # Exclude already purchased items
+                ).select_related('item', 'category')
+                
+                # Also search by keywords from search history
+                if search_keywords:
+                    keyword_query = Q()
+                    for keyword in search_keywords:
+                        keyword_query |= (
+                            Q(item__item_name__icontains=keyword) |
+                            Q(description__icontains=keyword) |
+                            Q(category__name__icontains=keyword)
+                        )
+                    recommended_products = recommended_products | ProductInfo.objects.filter(keyword_query).exclude(
+                        item__item_code__in=user_purchases
+                    ).select_related('item', 'category')
+                
+                recommended_products = recommended_products.distinct()[:limit * 2]  # Get extra for ranking
+            
+            # ✅ FALLBACK: If no personalized recommendations, show top-selling products
+            if not recommended_products.exists():
+                logger.info(f"[PERSONALIZED] No personalized recommendations for user {user_id}, falling back to top-selling products")
+                
+                from django.db.models import Sum
+                from datetime import timedelta
+                start_date = timezone.now() - timedelta(days=30)  # Last 30 days
+                
+                # Get top-selling items for the month
+                top_sales = SalesOrderItem.objects.filter(
+                    sales_order__created_at__gte=start_date
+                ).values('item_code').annotate(
+                    total_qty=Sum('total_loose_qty')
+                ).order_by('-total_qty')[:limit]
+                
+                top_item_codes = [item['item_code'] for item in top_sales]
+                
+                if top_item_codes:
+                    top_items = ItemMaster.objects.filter(item_code__in=top_item_codes)
+                    recommended_products = ProductInfo.objects.filter(item__in=top_items).select_related('item', 'category')
+                    fallback_source = 'top-selling'
+                    fallback_reason = 'Based on popular products (no purchase history yet)'
+                else:
+                    # If still no products, show most recent products
+                    recommended_products = ProductInfo.objects.all().select_related('item', 'category')[:limit]
+                    fallback_source = 'recent'
+                    fallback_reason = 'New to our catalog'
+            else:
+                fallback_source = 'personalized'
+                fallback_reason = 'Based on your purchases and searches'
+            
+            if not recommended_products.exists():
+                logger.warning(f"[PERSONALIZED] No products available at all for user {user_id}")
+                return Response({
+                    'success': True,
+                    'data': {
+                        'userId': user_id,
+                        'recommendations': [],
+                        'reason': 'No products available',
+                        'count': 0,
+                        'source': 'database'
+                    }
+                }, status=status.HTTP_200_OK)
+            
+            # ✅ Step 4: Fetch fresh data from ERP and enrich with auto-generated token
+            erp_items = fetch_all_items_from_erp()
+            erp_map = {item.get('c_item_code'): item for item in erp_items} if erp_items else {}
+            
+            products_data = []
+            for product_info in recommended_products:
+                item = product_info.item
+                
+                # Enrich with ERP data if available
+                erp_data = erp_map.get(item.item_code)
+                if erp_data:
+                    item.item_code = erp_data.get('c_item_code', item.item_code)
+                    item.item_name = erp_data.get('itemName', item.item_name)
+                    item.mrp = float(erp_data.get('mrp', item.mrp))
+                    item.std_disc = float(erp_data.get('std_disc', item.std_disc))
+                    item.max_disc = float(erp_data.get('max_disc', item.max_disc))
+                    item.expiry_date = parse_date(erp_data.get('expiryDate', item.expiry_date))
+                    item.erp_stock = erp_data.get('stockBalQty', 0)
+                
+                products_data.append(item)
+            
+            # ✅ Step 5: Serialize and rank by stock availability
+            serializer = ProductRecommendationSerializer(
+                products_data[:limit],
+                many=True,
+                context={'request': request}
+            )
+            
+            logger.info(f"[PERSONALIZED] Generated {len(serializer.data)} recommendations for user {user_id} | Source: {fallback_source}")
+            
+            return Response({
+                'success': True,
+                'message': f'Found {len(serializer.data)} recommendations for you',
+                'count': len(serializer.data),
+                'recommendationType': fallback_source,
+                'reason': fallback_reason,
+                'userId': user_id,
+                'data': serializer.data,
+                'purchaseCategories': len(purchased_products),
+                'searchKeywords': search_keywords,
+                'lastFetched': timezone.now().isoformat()
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"[PERSONALIZED_ERROR] Error fetching personalized recommendations: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': f'Error fetching recommendations: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PopularProductsView(APIView):
+    """
+    Get popular products based on search frequency and purchases
+    GET: Fetch trending/popular products
+    
+    Query Parameters:
+        - limit: Max number of products (default: 10)
+        - period: 'weekly', 'monthly', 'all-time' (default: 'monthly')
+        - apiKey: Optional API key to fetch fresh data from ERP
+    
+    Example: /api/recommendations/popular/?limit=10&period=monthly&apiKey=xyz
+    
+    Algorithm:
+    1. Get most searched keywords
+    2. Aggregate search count + purchase count
+    3. Rank by popularity score
+    4. Fetch fresh ERP data
+    5. Return trending products
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        try:
+            limit = int(request.query_params.get('limit', 10))
+            period = request.query_params.get('period', 'monthly').lower()
+            # [UPDATED] Token now auto-generated - no need for apiKey from request
+            
+            if period not in ['weekly', 'monthly', 'all-time']:
+                return Response({
+                    'success': False,
+                    'message': "period must be one of: 'weekly', 'monthly', 'all-time'"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # ✅ Step 1: Calculate date range
+            from django.utils import timezone
+            from datetime import timedelta
+            from django.db.models import Count, Sum, F
+            
+            now = timezone.now()
+            if period == 'weekly':
+                start_date = now - timedelta(days=7)
+            elif period == 'monthly':
+                start_date = now - timedelta(days=30)
+            else:  # all-time
+                start_date = now - timedelta(days=365*10)
+            
+            # ✅ Step 2: Get popular search terms
+            from .models import SearchHistory
+            popular_searches = SearchHistory.objects.filter(
+                updated_at__gte=start_date
+            ).order_by('-search_count')[:limit]
+            
+            if not popular_searches.exists():
+                logger.info(f"[POPULAR] No search history for period {period}")
+                return Response({
+                    'success': True,
+                    'data': {
+                        'period': period,
+                        'totalCount': 0,
+                        'products': [],
+                        'source': 'database'
+                    }
+                }, status=status.HTTP_200_OK)
+            
+            # ✅ Step 3: Find products matching popular searches
+            from django.db.models import Q
+            
+            popular_product_codes = set()
+            for search in popular_searches:
+                products = ProductInfo.objects.filter(
+                    Q(item__item_name__icontains=search.query) |
+                    Q(description__icontains=search.query) |
+                    Q(category__name__icontains=search.query)
+                ).values_list('item__item_code', flat=True)
+                popular_product_codes.update(products)
+            
+            popular_items = ItemMaster.objects.filter(
+                item_code__in=popular_product_codes
+            )[:limit]
+            
+            if not popular_items.exists():
+                return Response({
+                    'success': True,
+                    'data': {
+                        'period': period,
+                        'totalCount': 0,
+                        'products': [],
+                        'source': 'database'
+                    }
+                }, status=status.HTTP_200_OK)
+            
+            # ✅ Step 4: Fetch fresh data from ERP with auto-generated token
+            erp_items = fetch_all_items_from_erp()
+            erp_map = {item.get('c_item_code'): item for item in erp_items} if erp_items else {}
+            
+            products_data = []
+            search_count_map = {search.query: search.search_count for search in popular_searches}
+            
+            for item in popular_items:
+                # Enrich with ERP data if available
+                erp_data = erp_map.get(item.item_code)
+                if erp_data:
+                    item.item_code = erp_data.get('c_item_code', item.item_code)
+                    item.item_name = erp_data.get('itemName', item.item_name)
+                    item.mrp = float(erp_data.get('mrp', item.mrp))
+                    item.std_disc = float(erp_data.get('std_disc', item.std_disc))
+                    item.max_disc = float(erp_data.get('max_disc', item.max_disc))
+                    item.expiry_date = parse_date(erp_data.get('expiryDate', item.expiry_date))
+                    item.erp_stock = erp_data.get('stockBalQty', 0)
+                
+                products_data.append(item)
+            
+            # ✅ Step 5: Serialize results
+            serializer = ProductRecommendationSerializer(
+                products_data,
+                many=True,
+                context={'request': request}
+            )
+            
+            logger.info(f"[POPULAR] Found {len(serializer.data)} popular products for period {period}")
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'period': period,
+                    'totalCount': len(serializer.data),
+                    'products': serializer.data,
+                    'source': 'erp',
+                    'lastFetched': timezone.now().isoformat()
+                }
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"[POPULAR_ERROR] Error fetching popular products: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': f'Error fetching popular products: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -33,10 +33,13 @@ urlpatterns = [
     path('auth/superadmin-change-password/', views.SuperAdminChangePasswordView.as_view(), name='superadmin-change-password'),
     
     # ==================== ERP INTEGRATION ENDPOINTS ====================
-    # Token Generation
+ 
     path('erp/ws_c2_services_generate_token', views.GenerateTokenView.as_view(), name='generate-token'),
     # Item Masters
     path('erp/ws_c2_services_get_master_data', views.GetItemMasterView.as_view(), name='get-item-master'),
+    # Product Info Update
+    path('erp/update_product_info/', views.UpdateProductInfoView.as_view(), name='update-product-info'),
+    path('erp/upload_product_image/', views.UploadProductImageView.as_view(), name='upload-product-image'),
     # Stock Fetch
     path('erp/ws_c2_services_fetch_stock', views.FetchStockView.as_view(), name='fetch-stock'),
     # Sales Order Creation
@@ -47,34 +50,42 @@ urlpatterns = [
     path('erp/ws_c2_services_get_orderstatus', views.GetOrderStatusView.as_view(), name='get-order-status'),
     
     # ==================== CART ENDPOINTS ====================
-    path('cart/', views.CartView.as_view(), name='cart'),
+    path('cart/<int:user_id>/', views.CartView.as_view(), name='cart'),
     path('cart/add/<int:user_id>/', views.AddToCartView.as_view(), name='add-to-cart'),
     path('cart/item/<int:item_id>/', views.UpdateCartItemView.as_view(), name='update-cart-item'),
     
     # ==================== WISHLIST ENDPOINTS ====================
     path('wishlist/', views.WishlistView.as_view(), name='wishlist'),
-    path('wishlist/add/', views.AddToWishlistView.as_view(), name='add-to-wishlist'),
+    path('wishlist/<int:user_id>/', views.WishlistView.as_view(), name='wishlist-by-user'),
+    path('wishlist/add/<int:user_id>/', views.AddToWishlistView.as_view(), name='add-to-wishlist'),
     path('wishlist/item/<int:item_id>/', views.RemoveFromWishlistView.as_view(), name='remove-from-wishlist'),
     path('wishlist/item/<int:item_id>/update/', views.UpdateWishlistItemView.as_view(), name='update-wishlist-item'),
     path('wishlist/move-to-cart/', views.MoveToCartView.as_view(), name='move-to-cart'),
     
     # ==================== ADDRESS ENDPOINTS ====================
-    path('address/', views.ListAddressesView.as_view(), name='list-addresses'),
-    path('address/create/', views.CreateAddressView.as_view(), name='create-address'),
-    path('address/<int:address_id>/', views.UpdateAddressView.as_view(), name='update-address'),
-    path('address/<int:address_id>/delete/', views.DeleteAddressView.as_view(), name='delete-address'),
-    path('address/<int:address_id>/default/', views.SetDefaultAddressView.as_view(), name='set-default-address'),
+    path('address/<int:user_id>/', views.ListAddressesView.as_view(), name='list-addresses'),
+    path('address/create/<int:user_id>/', views.CreateAddressView.as_view(), name='create-address'),
+    path('address/<int:user_id>/<int:address_id>/', views.UpdateAddressView.as_view(), name='update-address'),
+    path('address/<int:user_id>/<int:address_id>/delete/', views.DeleteAddressView.as_view(), name='delete-address'),
+    path('address/<int:user_id>/<int:address_id>/default/', views.SetDefaultAddressView.as_view(), name='set-default-address'),
     path('checkout/preview/', views.OrderConfirmationPreviewView.as_view(), name='checkout-preview'),
     path('checkout/address/', views.CheckoutWithAddressView.as_view(), name='checkout-with-address'),
     
     # ==================== GPS LOCATION DETECTION ENDPOINTS ====================
-    path('location/detect/', views.DetectCurrentLocationView.as_view(), name='detect-location'),
-    path('location/confirm-address/', views.ConfirmLocationAddressView.as_view(), name='confirm-location-address'),
-    path('location/nearby-addresses/', views.NearbyAddressesView.as_view(), name='nearby-addresses'),
+    # path('location/detect/<int:user_id>/', views.DetectCurrentLocationView.as_view(), name='detect-location'),
+    # path('location/confirm-address/<int:user_id>/', views.ConfirmLocationAddressView.as_view(), name='confirm-location-address'),
+    # path('location/nearby-addresses/<int:user_id>/', views.NearbyAddressesView.as_view(), name='nearby-addresses'),
     
-    # ==================== CATEGORY & PRODUCT ENDPOINTS ====================
-    path('brands/', views.BrandsView.as_view(), name='brands'),
-    path('brand/products/', views.BrandProductsView.as_view(), name='brand-products'),
+    # ==================== PRODUCT ENDPOINTS ====================
     path('products/', views.AllProductsView.as_view(), name='all-products'),
+    path('search/<int:user_id>/', views.SearchProductsView.as_view(), name='search-products'),
+    path('search/popular/', views.PopularSearchView.as_view(), name='popular-search'),
+    path('search/log/', views.LogSearchView.as_view(), name='log-search'),
+    
+    # ==================== RECOMMENDATION ENDPOINTS ====================
+    path('recommendations/for-you/<int:user_id>/', views.PersonalizedRecommendationsView.as_view(), name='personalized-recommendations'),
+    path('recommendations/frequently-bought/', views.FrequentlyBoughtTogetherView.as_view(), name='frequently-bought-together'),
+    path('recommendations/top-selling/', views.TopSellingProductsView.as_view(), name='top-selling-products'),
+    path('recommendations/popular/', views.PopularProductsView.as_view(), name='popular-products'),
     
 ]

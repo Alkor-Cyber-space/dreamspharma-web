@@ -202,8 +202,17 @@ DEFAULT_FROM_EMAIL='sooryakr2004@gmail.com'
 
 
 # ==================== ERP INTEGRATION ====================
-# Change this IP when client provides the actual ERP server IP
-ERP_BASE_URL = 'http://localhost:44000'  # <-- CHANGE THIS IP WHEN CLIENT PROVIDES
+# 🔧 CONFIGURE THESE SETTINGS FOR YOUR ERP ENVIRONMENT
+# Change these values when client provides their actual ERP server details
+
+ERP_BASE_URL = 'http://localhost:44000'  # ERP Server IP/URL - CHANGE THIS ⚙️
+ERP_C2_CODE = '03C000'                   # Company code - CHANGE THIS ⚙️
+ERP_STORE_ID = '001'                     # Store ID - CHANGE THIS ⚙️
+ERP_PROD_CODE = '02'                     # Product code
+ERP_SECURITY_KEY = 'TUVVek1EQXhNalE9'    # Security key - CHANGE THIS ⚙️
+
+# Token refresh settings (in hours)
+ERP_TOKEN_REFRESH_HOURS = 23  # Refresh token every 23 hours (before 24-hour expiry)
 
 
 # ==================== APScheduler Configuration ====================

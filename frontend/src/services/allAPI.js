@@ -33,11 +33,11 @@ const onRefreshed = (token) => {
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const {
-      config,
-      response: { status },
-    } = error;
-    const originalRequest = config;
+    if (!error.response) {
+      return Promise.reject(error);
+    }
+    const { status } = error.response;
+    const originalRequest = error.config;
 
     if (status === 401 && !originalRequest._retry) {
       if (isRefreshing) {

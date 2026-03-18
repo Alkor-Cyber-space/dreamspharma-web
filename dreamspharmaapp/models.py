@@ -25,7 +25,6 @@ class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=15, blank=True, null=True, unique=True, validators=[
         RegexValidator(r'^\d{10,15}$', 'Phone number must be 10-15 digits')
     ])
-    profile_image = models.ImageField(upload_to='profiles/', blank=True, null=True, help_text="Profile picture for user")
 
     is_kyc_approved = models.BooleanField(default=False)
     first_login_otp_verified = models.BooleanField(default=False, help_text="Tracks if user has completed first login OTP verification")
@@ -35,7 +34,7 @@ class CustomUser(AbstractUser):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(email__isnull=False) | models.Q(phone_number__isnull=False),
+                check=models.Q(email__isnull=False) | models.Q(phone_number__isnull=False),
                 name='email_or_phone_required'
             )
         ]
@@ -147,6 +146,24 @@ class OTP(models.Model):
         return f"OTP - {self.email}"
 
 
+# ==================== BRAND MODEL ====================
+
+class Brand(models.Model):
+    """Medicine brand/manufacturer - used for categorization"""
+    name = models.CharField(max_length=255, unique=True)
+    logo = models.ImageField(upload_to='brands/', null=True, blank=True)
+    description = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        ordering = ['name']
+
+
 # ==================== ERP INTEGRATION MODELS ====================
 
 class APIToken(models.Model):
@@ -190,53 +207,21 @@ class ItemMaster(models.Model):
         ordering = ['item_code']
 
 
-class Category(models.Model):
-    """Product categories/brands with icons (e.g., Cipla, Mankind, Apollo Pharma)"""
-    name = models.CharField(max_length=255, unique=True, help_text="Brand/Category name (e.g., Cipla, Mankind, Apollo Pharma)")
-    icon = models.ImageField(upload_to='categories/icons/', blank=True, null=True, help_text="Brand logo/icon for UI display")
-    is_active = models.BooleanField(default=True)
+class ProductInfo(models.Model):
+    """Product information for brand categorization and display"""
+    item = models.OneToOneField(ItemMaster, on_delete=models.CASCADE, related_name='product_info', primary_key=True)
+    brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
+    description = models.TextField(blank=True, null=True)
+    product_image = models.ImageField(upload_to='products/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return self.name
-    
-    class Meta:
-        ordering = ['name']
-        verbose_name_plural = "Categories (Brands)"
-
-
-class ProductInfo(models.Model):
-    """Product information and display"""
-    item = models.OneToOneField(ItemMaster, on_delete=models.CASCADE, related_name='product_info', primary_key=True)
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products', help_text="Brand/Category assigned by superadmin (e.g., Cipla, Mankind)")
-    type_label = models.CharField(max_length=100, blank=True, null=True, help_text="Product type label (e.g., 'Pain Relief', 'Antibiotic') shown under product name")
-    subheading = models.CharField(max_length=255, blank=True, null=True, help_text="Product subheading/subtitle for mobile app")
-    description = models.TextField(blank=True, null=True, help_text="Detailed product description")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True) 
-    
-    def __str__(self):
-        return f"{self.item.item_name}"
+        return f"{self.item.item_name} - {self.brand.name if self.brand else 'No Brand'}"
     
     class Meta:
         verbose_name_plural = "Product Info"
         ordering = ['-created_at']
-
-
-class ProductImage(models.Model):
-    """Multiple product images for items"""
-    product_info = models.ForeignKey(ProductInfo, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='products/images/')
-    image_order = models.PositiveIntegerField(default=1, help_text="Order of image display (1-3 for 3 main images)")
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    def __str__(self):
-        return f"Image {self.image_order} - {self.product_info.item.item_name}"
-    
-    class Meta:
-        ordering = ['image_order']
-        unique_together = ('product_info', 'image_order')
 
 
 class Stock(models.Model):
@@ -314,8 +299,8 @@ class Address(models.Model):
     is_active = models.BooleanField(default=True)
     
     # GPS Coordinates
-    latitude = models.FloatField(blank=True, null=True, help_text='Latitude from GPS/map')
-    longitude = models.FloatField(blank=True, null=True, help_text='Longitude from GPS/map')
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True, help_text='Latitude from GPS/map')
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True, help_text='Longitude from GPS/map')
     location_accuracy = models.IntegerField(blank=True, null=True, help_text='GPS accuracy in meters')
     is_gps_verified = models.BooleanField(default=False, help_text='Address confirmed via GPS coordinates')
     
@@ -573,41 +558,9 @@ class WishlistItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
-    def get_discount_percentage(self):
-        """Get discount percentage for this item"""
-        return float(self.item.std_disc)
-    
-    def get_discounted_price(self):
-        """Calculate price per unit after discount"""
-        mrp = float(self.item.mrp)
-        discount = float(self.item.std_disc)
-        discounted_price = mrp * (1 - discount / 100)
-        return round(discounted_price, 2)
-    
     class Meta:
         unique_together = ('wishlist', 'item')
         ordering = ['-created_at']
     
     def __str__(self):
         return f"{self.item.item_name} x {self.quantity} (Wishlist: {self.wishlist.user.username})"
-
-
-class SearchHistory(models.Model):
-    """Track search queries for popular search feature"""
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True, blank=True, related_name='search_history')
-    query = models.CharField(max_length=255, db_index=True)  # Search keyword
-    search_count = models.PositiveIntegerField(default=1)  # How many times searched
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        unique_together = ('query',)  # Each query is unique
-        ordering = ['-search_count', '-updated_at']  # Order by popularity
-        verbose_name_plural = "Search Histories"
-        indexes = [
-            models.Index(fields=['-search_count']),
-            models.Index(fields=['-updated_at']),
-        ]
-    
-    def __str__(self):
-        return f"Search: '{self.query}' ({self.search_count} times)"

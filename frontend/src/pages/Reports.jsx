@@ -35,11 +35,10 @@ export default function Reports() {
     return (
       <div
         className={`relative p-5 rounded-xl shadow-sm border border-gray-100
-        ${
-          isLight
+        ${isLight
             ? "bg-gradient-to-r from-[#f4f8f9] via-[#c1d9dd] to-[#67a7b3]"
             : "bg-gradient-to-r from-[#64a5b1] to-[#529ba7]"
-        }
+          }
         text-gray-800 overflow-hidden`}
       >
         <div className="absolute right-4 top-5 bg-[#177286] w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm">

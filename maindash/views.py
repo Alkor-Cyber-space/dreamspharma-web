@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from django.contrib.auth import get_user_model, logout
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from dreamspharmaapp.models import KYC, SalesOrder, Category, ItemMaster, ProductInfo
+from dreamspharmaapp.models import KYC, SalesOrder, Brand, ItemMaster, ProductInfo
 from .serializers import (
     RetailerKYCDetailSerializer, ApproveKYCSerializer, RejectKYCSerializer, DashboardStatisticsSerializer, ChangePasswordSerializer, SuperAdminProfileSerializer, SuperAdminProfileImageSerializer, AddCategorySerializer
 )
@@ -396,44 +396,44 @@ class AddCategoryView(APIView):
         
         try:
             if category_id:
-                # Get specific category by ID from URL
-                category = Category.objects.get(id=category_id)
+                # Get specific brand by ID from URL
+                brand = Brand.objects.get(id=category_id)
                 return Response({
                     'code': '200',
                     'type': 'getCategory',
-                    'message': 'Category retrieved successfully',
+                    'message': 'Brand retrieved successfully',
                     'data': {
-                        'id': category.id,
-                        'name': category.name,
-                        'icon': request.build_absolute_uri(category.icon.url) if category.icon else None,
-                        'is_active': category.is_active,
-                        'created_at': category.created_at
+                        'id': brand.id,
+                        'name': brand.name,
+                        'icon': request.build_absolute_uri(brand.logo.url) if brand.logo else None,
+                        'is_active': brand.is_active,
+                        'created_at': brand.created_at
                     }
                 }, status=status.HTTP_200_OK)
             else:
-                # Get all categories
-                categories = Category.objects.all().order_by('-created_at')
-                categories_data = [{
-                    'id': cat.id,
-                    'name': cat.name,
-                    'icon': request.build_absolute_uri(cat.icon.url) if cat.icon else None,
-                    'is_active': cat.is_active,
-                    'created_at': cat.created_at
-                } for cat in categories]
+                # Get all brands
+                brands = Brand.objects.all().order_by('-created_at')
+                brands_data = [{
+                    'id': b.id,
+                    'name': b.name,
+                    'icon': request.build_absolute_uri(b.logo.url) if b.logo else None,
+                    'is_active': b.is_active,
+                    'created_at': b.created_at
+                } for b in brands]
                 
                 return Response({
                     'code': '200',
                     'type': 'getCategory',
-                    'message': f'Found {len(categories_data)} categories',
-                    'count': len(categories_data),
-                    'data': categories_data
+                    'message': f'Found {len(brands_data)} brands',
+                    'count': len(brands_data),
+                    'data': brands_data
                 }, status=status.HTTP_200_OK)
         
-        except Category.DoesNotExist:
+        except Brand.DoesNotExist:
             return Response({
                 'code': '404',
                 'type': 'getCategory',
-                'message': f'Category with ID {category_id} not found'
+                'message': f'Brand with ID {category_id} not found'
             }, status=status.HTTP_404_NOT_FOUND)
         
         except Exception as e:
@@ -456,20 +456,20 @@ class AddCategoryView(APIView):
         serializer = AddCategorySerializer(data=request.data)
         if serializer.is_valid():
             try:
-                category = serializer.save()
+                brand = serializer.save()
                 
-                logger.info(f"[CATEGORY_CREATED] Name: {category.name} | Created by: {request.user.username}")
+                logger.info(f"[BRAND_CREATED] Name: {brand.name} | Created by: {request.user.username}")
                 
                 return Response({
                     'code': '200',
                     'type': 'addCategory',
-                    'message': 'Category created successfully',
+                    'message': 'Brand created successfully',
                     'data': {
-                        'id': category.id,
-                        'name': category.name,
-                        'icon': request.build_absolute_uri(category.icon.url) if category.icon else None,
-                        'is_active': category.is_active,
-                        'created_at': category.created_at
+                        'id': brand.id,
+                        'name': brand.name,
+                        'icon': request.build_absolute_uri(brand.logo.url) if brand.logo else None,
+                        'is_active': brand.is_active,
+                        'created_at': brand.created_at
                     }
                 }, status=status.HTTP_201_CREATED)
             
@@ -515,49 +515,49 @@ class AddCategoryView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            # Get existing category
-            category = Category.objects.get(id=category_id)
-            old_name = category.name
+            # Get existing brand
+            brand = Brand.objects.get(id=category_id)
+            old_name = brand.name
             
             # Only check for duplicates if name is being changed
             if name.lower() != old_name.lower():
-                # Check if new name already exists (for other categories)
-                if Category.objects.filter(name__iexact=name).exclude(id=category_id).exists():
+                # Check if new name already exists (for other brands)
+                if Brand.objects.filter(name__iexact=name).exclude(id=category_id).exists():
                     return Response({
                         'code': '400',
                         'type': 'updateCategory',
-                        'message': f'Another category with name "{name}" already exists'
+                        'message': f'Another brand with name "{name}" already exists'
                     }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Update category
-            category.name = name
-            category.is_active = request.data.get('is_active', category.is_active)
+            # Update brand
+            brand.name = name
+            brand.is_active = request.data.get('is_active', brand.is_active)
             
-            if 'icon' in request.FILES:
-                category.icon = request.FILES['icon']
+            if 'logo' in request.FILES:
+                brand.logo = request.FILES['logo']
             
-            category.save()
+            brand.save()
             
-            logger.info(f"[CATEGORY_UPDATED] ID: {category_id} | Old Name: {old_name} | New Name: {name} | Updated by: {request.user.username}")
+            logger.info(f"[BRAND_UPDATED] ID: {category_id} | Old Name: {old_name} | New Name: {name} | Updated by: {request.user.username}")
             
             return Response({
                 'code': '200',
                 'type': 'updateCategory',
-                'message': 'Category updated successfully',
+                'message': 'Brand updated successfully',
                 'data': {
-                    'id': category.id,
-                    'name': category.name,
-                    'icon': request.build_absolute_uri(category.icon.url) if category.icon else None,
-                    'is_active': category.is_active,
-                    'created_at': category.created_at
+                    'id': brand.id,
+                    'name': brand.name,
+                    'icon': request.build_absolute_uri(brand.logo.url) if brand.logo else None,
+                    'is_active': brand.is_active,
+                    'created_at': brand.created_at
                 }
             }, status=status.HTTP_200_OK)
         
-        except Category.DoesNotExist:
+        except Brand.DoesNotExist:
             return Response({
                 'code': '404',
                 'type': 'updateCategory',
-                'message': f'Category with ID {category_id} not found'
+                'message': f'Brand with ID {category_id} not found'
             }, status=status.HTTP_404_NOT_FOUND)
         
         except Exception as e:
@@ -586,32 +586,32 @@ class AddCategoryView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            category = Category.objects.get(id=category_id)
-            category_name = category.name
+            brand = Brand.objects.get(id=category_id)
+            brand_name = brand.name
             
-            # Check if category is used in any products
-            if ProductInfo.objects.filter(category_id=category_id).exists():
+            # Check if brand is used in any products
+            if ProductInfo.objects.filter(brand_id=category_id).exists():
                 return Response({
                     'code': '409',
                     'type': 'deleteCategory',
-                    'message': f'Cannot delete category "{category_name}" - it is assigned to {ProductInfo.objects.filter(category_id=category_id).count()} product(s)'
+                    'message': f'Cannot delete brand "{brand_name}" - it is assigned to {ProductInfo.objects.filter(brand_id=category_id).count()} product(s)'
                 }, status=status.HTTP_409_CONFLICT)
             
-            category.delete()
+            brand.delete()
             
-            logger.info(f"[CATEGORY_DELETED] ID: {category_id} | Name: {category_name} | Deleted by: {request.user.username}")
+            logger.info(f"[BRAND_DELETED] ID: {category_id} | Name: {brand_name} | Deleted by: {request.user.username}")
             
             return Response({
                 'code': '200',
                 'type': 'deleteCategory',
-                'message': f'Category "{category_name}" deleted successfully'
+                'message': f'Brand "{brand_name}" deleted successfully'
             }, status=status.HTTP_200_OK)
         
-        except Category.DoesNotExist:
+        except Brand.DoesNotExist:
             return Response({
                 'code': '404',
                 'type': 'deleteCategory',
-                'message': f'Category with ID {category_id} not found'
+                'message': f'Brand with ID {category_id} not found'
             }, status=status.HTTP_404_NOT_FOUND)
         
         except Exception as e:
@@ -660,10 +660,10 @@ class AssignBrandToProductView(APIView):
             product_info, created = ProductInfo.objects.get_or_create(item=item)
             
             # Get the brand/category
-            brand = Category.objects.get(id=brand_id)
+            brand = Brand.objects.get(id=brand_id)
             
             # Assign brand to product
-            product_info.category = brand
+            product_info.brand = brand
             product_info.save()
             
             logger.info(f"[BRAND_ASSIGNED] Item: {item_code} | Brand: {brand.name} | Brand ID: {brand_id} | Assigned by: {request.user.username}")
@@ -676,7 +676,7 @@ class AssignBrandToProductView(APIView):
                     'c_item_code': item_code,
                     'brand_id': brand.id,
                     'brand_name': brand.name,
-                    'brand_logo': request.build_absolute_uri(brand.icon.url) if brand.icon else ''
+                    'brand_logo': request.build_absolute_uri(brand.logo.url) if brand.logo else ''
                 }
             }, status=status.HTTP_200_OK)
         
@@ -687,7 +687,7 @@ class AssignBrandToProductView(APIView):
                 'message': f'Item with code {item_code} not found'
             }, status=status.HTTP_404_NOT_FOUND)
         
-        except Category.DoesNotExist:
+        except Brand.DoesNotExist:
             return Response({
                 'code': '404',
                 'type': 'assignBrandToProduct',

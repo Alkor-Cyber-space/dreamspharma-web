@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from dreamspharmaapp.models import KYC, SalesOrder, Category
+from dreamspharmaapp.models import KYC, SalesOrder, Brand
 from .emails import send_kyc_approval_email, send_kyc_rejection_email
 
 User = get_user_model()
@@ -198,26 +198,26 @@ class SuperAdminProfileImageSerializer(serializers.ModelSerializer):
 class AddCategorySerializer(serializers.ModelSerializer):
     """Serializer for adding new brand/category"""
     class Meta:
-        model = Category
-        fields = ['name', 'icon', 'is_active']
+        model = Brand
+        fields = ['name', 'logo', 'is_active']
         extra_kwargs = {
             'name': {'required': True},
-            'icon': {'required': False},
+            'logo': {'required': False},
             'is_active': {'required': False, 'default': True}
         }
     
     def validate_name(self, value):
-        """Validate that category name is unique"""
-        if Category.objects.filter(name__iexact=value).exists():
-            raise serializers.ValidationError("Category with this name already exists")
+        """Validate that brand name is unique"""
+        if Brand.objects.filter(name__iexact=value).exists():
+            raise serializers.ValidationError("Brand with this name already exists")
         return value
     
-    def validate_icon(self, value):
-        """Validate icon file"""
+    def validate_logo(self, value):
+        """Validate logo file"""
         if value:
             # Check file size (max 5MB)
             if value.size > 5 * 1024 * 1024:
-                raise serializers.ValidationError("Icon size must not exceed 5MB")
+                raise serializers.ValidationError("Logo size must not exceed 5MB")
             
             # Check file extension
             allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp']

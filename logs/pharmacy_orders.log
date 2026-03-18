@@ -1,0 +1,54 @@
+[INFO] 2026-03-18 16:05:49 apps ready:31 - [ERP_TOKEN] Initializing ERP token on app startup...
+[INFO] 2026-03-18 16:05:49 erp_token_service initialize_erp_token:204 - [ERP_TOKEN] [INIT] Initializing ERP token service...
+[INFO] 2026-03-18 16:05:49 erp_token_service get_cached_erp_token:83 - [ERP_TOKEN] [NOTE] Token not found in cache or expired. Generating new token...
+[INFO] 2026-03-18 16:05:49 erp_token_service generate_erp_token_from_server:37 - [ERP_TOKEN] [REFRESH] Generating new token from ERP server...
+[INFO] 2026-03-18 16:05:49 erp_token_service generate_erp_token_from_server:38 - [ERP_TOKEN] Request URL: http://localhost:44000/ws_c2_services_generate_token
+[ERROR] 2026-03-18 16:05:53 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-03-18 16:05:53 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-03-18 16:05:53 erp_token_service initialize_erp_token:211 - [ERP_TOKEN] [FAILED] Failed to initialize ERP token
+[INFO] 2026-03-18 16:05:53 apps ready:72 - [OK] APScheduler started - Jobs scheduled:
+[INFO] 2026-03-18 16:05:53 apps ready:73 -   [OK] sync_itemmaster: every 15 minutes
+[INFO] 2026-03-18 16:05:53 apps ready:74 -   [OK] refresh_erp_token: every 23 hours
+[INFO] 2026-03-18 16:07:44 apps ready:31 - [ERP_TOKEN] Initializing ERP token on app startup...
+[INFO] 2026-03-18 16:07:44 erp_token_service initialize_erp_token:204 - [ERP_TOKEN] [INIT] Initializing ERP token service...
+[INFO] 2026-03-18 16:07:44 erp_token_service get_cached_erp_token:83 - [ERP_TOKEN] [NOTE] Token not found in cache or expired. Generating new token...
+[INFO] 2026-03-18 16:07:44 erp_token_service generate_erp_token_from_server:37 - [ERP_TOKEN] [REFRESH] Generating new token from ERP server...
+[INFO] 2026-03-18 16:07:44 erp_token_service generate_erp_token_from_server:38 - [ERP_TOKEN] Request URL: http://localhost:44000/ws_c2_services_generate_token
+[ERROR] 2026-03-18 16:07:48 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-03-18 16:07:48 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-03-18 16:07:48 erp_token_service initialize_erp_token:211 - [ERP_TOKEN] [FAILED] Failed to initialize ERP token
+[INFO] 2026-03-18 16:07:48 apps ready:72 - [OK] APScheduler started - Jobs scheduled:
+[INFO] 2026-03-18 16:07:48 apps ready:73 -   [OK] sync_itemmaster: every 15 minutes
+[INFO] 2026-03-18 16:07:48 apps ready:74 -   [OK] refresh_erp_token: every 23 hours
+[INFO] 2026-03-18 16:22:48 jobs sync_itemmaster_job:19 - [2026-03-18 10:52:48.470713+00:00] Starting sync_itemmaster job...
+[ERROR] 2026-03-18 16:22:52 sync_itemmaster handle:90 - ERP connection error during sync: HTTPConnectionPool(host='localhost', port=44000): Max retries exceeded with url: /ws_c2_services_get_master_data (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001B8A156D6D0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+[INFO] 2026-03-18 16:22:52 jobs sync_itemmaster_job:21 - [2026-03-18 10:52:52.526077+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-18 16:24:20 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 16:39:20 jobs sync_itemmaster_job:19 - [2026-03-18 11:09:20.799857+00:00] Starting sync_itemmaster job...
+[ERROR] 2026-03-18 16:39:24 sync_itemmaster handle:90 - ERP connection error during sync: HTTPConnectionPool(host='localhost', port=44000): Max retries exceeded with url: /ws_c2_services_get_master_data (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002013DE6FA10>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+[INFO] 2026-03-18 16:39:24 jobs sync_itemmaster_job:21 - [2026-03-18 11:09:24.867797+00:00] sync_itemmaster job completed successfully
+[INFO] 2026-03-18 16:51:31 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 16:51:36 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 16:52:07 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 16:53:39 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 16:53:43 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 16:53:47 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 16:56:30 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 16:56:30 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 16:57:11 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 16:58:14 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:01:32 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:01:32 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:01:43 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:01:44 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:02:10 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:02:11 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:02:28 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:03:05 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:04:01 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:05:41 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:05:41 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:05:41 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:05:58 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:06:15 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes
+[INFO] 2026-03-18 17:06:16 apps ready:35 - [OK] APScheduler started - sync_itemmaster will run every 15 minutes

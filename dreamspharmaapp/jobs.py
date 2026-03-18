@@ -21,24 +21,3 @@ def sync_itemmaster_job():
         logger.info(f'[{timezone.now()}] sync_itemmaster job completed successfully')
     except Exception as e:
         logger.error(f'[{timezone.now()}] Error in sync_itemmaster job: {str(e)}')
-
-
-def refresh_erp_token_job():
-    """
-    🔄 Refresh ERP token periodically to prevent expiry
-    Runs every 23 hours (configurable in settings.ERP_TOKEN_REFRESH_HOURS)
-    
-    This ensures the cached token is always fresh and available
-    for background services and API calls
-    """
-    try:
-        logger.info(f'[{timezone.now()}] [REFRESH] Starting refresh_erp_token job...')
-        from .erp_token_service import refresh_erp_token
-        success = refresh_erp_token()
-        if success:
-            logger.info(f'[{timezone.now()}] [SUCCESS] Token refresh job completed successfully')
-        else:
-            logger.error(f'[{timezone.now()}] [FAILED] Token refresh job failed')
-    except Exception as e:
-        logger.error(f'[{timezone.now()}] [FAILED] Error in refresh_erp_token job: {str(e)}')
-

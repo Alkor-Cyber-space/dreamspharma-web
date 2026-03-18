@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Search, Filter, Eye, CheckCircle } from "lucide-react";
+import { Search, Filter, Eye, AlertCircle, CheckCircle, Package, ChevronDown } from "lucide-react";
+import SummaryCard from "../components/SummaryCard";
 
 export default function Refunds() {
   const [search, setSearch] = useState("");
@@ -83,93 +84,91 @@ export default function Refunds() {
   };
 
   return (
-    <div className="p-8 bg-[#F4F6F8] min-h-screen">
+    <div className="   ml-5 mt-5 border-l-2 border-gray-100">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-800">
-          Refund & Cancellation Management
-        </h1>
-        <p className="text-sm text-gray-500">
-          Razorpay – linked refund approval workflow with audit trail
-        </p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-[#F6EED6] border border-[#F2D58A] rounded-2xl p-6">
-          <span className="text-sm text-[#B7791F] font-medium">
-            Pending Approval
-          </span>
-          <div className="text-3xl text-[#B7791F] font-semibold mt-2">
-            {
-              refundsData.filter((item) => item.status === "Pending").length
-            }
-          </div>
+      <div className="mb-3 flex flex-col md:flex-row md:items-end justify-between gap-4 ">
+        <div>
+          <h1 className="text-xl font-semibold text-[#505050] tracking-tight">
+            Refund & Cancellation Management
+          </h1>
+          <p className="text-sm text-gray-500">
+            Monitor and track all retailer orders with ERP sync status
+          </p>
         </div>
 
-        <div className="bg-[#E3ECFA] border border-[#B6CCF6] rounded-2xl p-6">
-          <span className="text-sm text-[#2563EB] font-medium">
-            In Progress
-          </span>
-          <div className="text-3xl text-[#2563EB] font-semibold mt-2">
-            {
-              refundsData.filter(
-                (item) =>
-                  item.status === "Approved" ||
-                  item.status === "Confirmed"
-              ).length
-            }
-          </div>
-        </div>
+        {/* Search & Filter */}
+        <div className="flex items-center bg-white border border-[#E5E7EB] rounded-xl px-2 py-1.5 shadow-sm w-full lg:max-w-xl transition-all focus-within:shadow-lg">
 
-        <div className="bg-[#DFF5E8] border border-[#A7E3C2] rounded-2xl p-6">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-[#15803D] font-medium">
-              Total Refunds (This Month)
-            </span>
-            <CheckCircle size={18} className="text-[#15803D]" />
-          </div>
-          <div className="text-3xl text-[#15803D] font-semibold mt-2">
-            {refundsData.length}
-          </div>
-        </div>
-      </div>
+          <Search size={18} className="text-[#9EA2A7] ml-2 shrink-0" />
 
-      {/* Search + Filter */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm mb-6 flex items-center gap-4">
-        <div className="relative flex-1">
-          <Search
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-          />
           <input
             type="text"
             placeholder="Search by shop name or ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 py-2 border border-gray-200 rounded-xl bg-[#F9FAFB] focus:outline-none"
+            className="w-full pl-9 pr-4 py-1 border-none rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-[#505050] placeholder:text-[#9EA2A7] transition-all"
           />
-        </div>
 
-        <div className="flex items-center gap-2 border border-gray-200 bg-[#F9FAFB] px-4 py-2 rounded-xl">
-          <Filter size={16} className="text-gray-500" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-transparent outline-none text-sm text-gray-600"
-          >
-            <option value="All">All</option>
-            <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
-            <option value="Confirmed">Confirmed</option>
-          </select>
+          <div className="relative min-w-[140px]">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="appearance-none w-full bg-white border border-[#E5E7EB] rounded-xl px-4 py-2 pr-10 text-sm text-[#505050] font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer transition-colors"
+            >
+              <option value="All">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Confirmed">Confirmed</option>
+            </select>
+
+            <ChevronDown
+              size={16}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9EA2A7] pointer-events-none"
+            />
+          </div>
+
         </div>
       </div>
 
+      {/* Stats Cards */}
+      <div className="flex flex-col md:flex-row gap-4 lg:gap-6 mb-3">
+        <SummaryCard
+          title="Pending Approval"
+          value={refundsData.filter((item) => item.status === "Pending").length}
+          icon={<AlertCircle size={20} />}
+          bgClass="bg-[#f2ecbb]"
+          textClass="text-[#846018]"
+          iconClass=""
+          blobColor1="bg-[#D08700]"
+          blobColor2="bg-[#733E0A]"
+        />
+        <SummaryCard
+          title="In Progress"
+          value={refundsData.filter((item) => item.status === "Approved" || item.status === "Confirmed").length}
+          icon={<CheckCircle size={20} />}
+          bgClass="bg-[#d8e9ff]"
+          textClass="text-[#1D4ED8]"
+          iconClass="text-blue-600"
+          blobColor1="bg-[#83ACE5]"
+          blobColor2="bg-[#1447EA]"
+        />
+        <SummaryCard
+          title="Total Refunds (This Month)"
+          value={refundsData.length}
+          icon={<Package size={20} />}
+          bgClass="bg-[#e9fedf]"
+          textClass="text-[#207238]"
+          iconClass=""
+          blobColor1="bg-[#A3FF63]"
+          blobColor2="bg-[#33CB6C]"
+        />
+      </div>
+
+
       {/* Table with Scroll */}
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
-          <table className="min-w-[900px] w-full text-left">
+        <div className="overflow-x-auto overflow-y-auto max-h-[500px]">
+          <table className="min-w-[1000px] w-full text-left">
             <thead className="bg-[#DCE4EA] text-gray-600 text-xs uppercase tracking-wide sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4">Refund ID</th>
@@ -187,9 +186,8 @@ export default function Refunds() {
               {filteredRefunds.map((item, index) => (
                 <tr
                   key={item.id}
-                  className={`${
-                    index % 2 === 0 ? "bg-white" : "bg-[#F4F6F8]"
-                  } hover:bg-[#EEF2F6] transition`}
+                  className={`${index % 2 === 0 ? "bg-white" : "bg-[#F4F6F8]"
+                    } hover:bg-[#EEF2F6] transition`}
                 >
                   <td className="px-6 py-4 font-semibold">{item.id}</td>
                   <td className="px-6">{item.orderId}</td>

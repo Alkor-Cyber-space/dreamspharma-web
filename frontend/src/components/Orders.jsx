@@ -201,7 +201,7 @@ const Orders = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
         <div>
           <h1 className="text-xl font-semibold text-gray-700">Order Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Monitor and track all retailer orders with ERP sync status</p>
+          <p className="text-sm text-gray-500 ">Monitor and track all retailer orders with ERP sync status</p>
         </div>
 
         <div className="flex items-center bg-white border border-[#E5E7EB] rounded-xl px-2.5 py-1.5 shadow-sm w-full lg:max-w-xl transition-all focus-within:shadow-lg">

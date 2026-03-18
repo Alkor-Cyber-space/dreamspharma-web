@@ -10,6 +10,8 @@ import Refunds from "./pages/Refunds";
 import Reports from "./pages/Reports";
 import Products from "./pages/Products";
 import Profile from "./pages/Profile";
+import OffersAndBanners from "./pages/OffersAndBanners";
+import AuditLogs from "./pages/AuditLogs";
 
 function App() {
   return (
@@ -33,6 +35,8 @@ function App() {
           <Route path="products" element={<Products />} />
           <Route path="reports" element={<Reports />} />
           <Route path="Profile" element={<Profile />} />
+          <Route path="offers" element={<OffersAndBanners />} />
+          <Route path="audit" element={<AuditLogs />} />
         </Route>
       </Routes>
     </BrowserRouter>

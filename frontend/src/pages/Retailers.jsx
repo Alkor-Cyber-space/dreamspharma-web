@@ -336,7 +336,7 @@ export default function RetailerKYCPage() {
           <h1 className="text-xl font-semibold text-[#505050] tracking-tight">
             Retailer & KYC Management
           </h1>
-          <p className="text-xs sm:text-sm  text-[#505050] mt-1">
+          <p className="text-xs sm:text-sm  text-[#505050] ">
             Manage pharmacy retailers and KYC verification
           </p>
         </div>

@@ -30,17 +30,30 @@ export default function Reports() {
 
   /* ---------- Stat Card ---------- */
 
-  const StatCard = ({ title, value, growth, icon }) => (
-    <div className="bg-gradient-to-r from-[#4f9ca5] to-[#2e7d88] text-white p-6 rounded-xl shadow-lg relative">
-      <div className="absolute right-4 top-4 bg-white/20 p-2 rounded-full">
-        {icon}
-      </div>
+  const StatCard = ({ title, value, growth, icon, index = 0 }) => {
+    const isLight = index % 2 === 0;
+    return (
+      <div
+        className={`relative p-5 rounded-xl shadow-sm border border-gray-100
+        ${
+          isLight
+            ? "bg-gradient-to-r from-[#f4f8f9] via-[#c1d9dd] to-[#67a7b3]"
+            : "bg-gradient-to-r from-[#64a5b1] to-[#529ba7]"
+        }
+        text-gray-800 overflow-hidden`}
+      >
+        <div className="absolute right-4 top-5 bg-[#177286] w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm">
+          {icon}
+        </div>
 
-      <h3 className="text-sm opacity-90">{title}</h3>
-      <h2 className="text-2xl font-bold mt-1">{value}</h2>
-      <p className="text-xs text-green-200 mt-1">{growth}</p>
-    </div>
-  );
+        <h2 className="text-2xl font-medium">{value}</h2>
+        <p className="mt-1 text-[17px] text-gray-700">{title}</p>
+        <p className="mt-3 text-sm font-medium text-[#059669]">
+          ↑ {growth.replace("+", "").replace("+ ", "")}
+        </p>
+      </div>
+    );
+  };
 
   /* ---------- Report Card ---------- */
 
@@ -95,33 +108,37 @@ export default function Reports() {
 
       {/* ---------- STATS ---------- */}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
         <StatCard
+          index={0}
           title="Total Revenue (MTD)"
           value="₹ 1,85,000"
           growth="+12% from last month"
-          icon={<DollarSign size={18} />}
+          icon={<DollarSign size={20} />}
         />
 
         <StatCard
+          index={1}
           title="Orders (MTD)"
           value="147"
           growth="+8% from last month"
-          icon={<TrendingUp size={18} />}
+          icon={<TrendingUp size={20} />}
         />
 
         <StatCard
+          index={2}
           title="Avg Order Value"
           value="₹12,585"
           growth="+5% from last month"
-          icon={<DollarSign size={18} />}
+          icon={<DollarSign size={20} />}
         />
 
         <StatCard
+          index={3}
           title="Active Retailers"
           value="1,247"
           growth="+15% from last month"
-          icon={<TrendingUp size={18} />}
+          icon={<TrendingUp size={20} />}
         />
       </div>
 

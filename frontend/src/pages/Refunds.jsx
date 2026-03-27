@@ -171,6 +171,7 @@ export default function Refunds() {
           <table className="min-w-[1000px] w-full text-left">
             <thead className="bg-[#DCE4EA] text-gray-600 text-xs uppercase tracking-wide sticky top-0 z-10">
               <tr>
+                <th className="px-6 py-4 text-center">SI NO</th>
                 <th className="px-6 py-4">Refund ID</th>
                 <th className="px-6">Order ID</th>
                 <th className="px-6">Retailer</th>
@@ -189,6 +190,7 @@ export default function Refunds() {
                   className={`${index % 2 === 0 ? "bg-white" : "bg-[#F4F6F8]"
                     } hover:bg-[#EEF2F6] transition`}
                 >
+                  <td className="px-6 py-4 font-bold text-center">{index + 1}</td>
                   <td className="px-6 py-4 font-semibold">{item.id}</td>
                   <td className="px-6">{item.orderId}</td>
                   <td className="px-6">{item.retailer}</td>

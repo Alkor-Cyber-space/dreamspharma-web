@@ -477,6 +477,7 @@ export default function OffersAndBanners() {
                     <table className="min-w-[900px] w-full text-left">
                         <thead className="bg-[#DCE4EA] text-gray-600 text-xs uppercase tracking-wide sticky top-0 z-10">
                             <tr>
+                                <th className="px-6 py-4 text-center">SI NO</th>
                                 <th className="px-6 py-4">Offer ID</th>
                                 <th className="px-6">Title</th>
                                 <th className="px-6">Description</th>
@@ -490,7 +491,7 @@ export default function OffersAndBanners() {
                             {filteredOffers.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={7}
+                                        colSpan={8}
                                         className="px-6 py-10 text-center text-gray-400"
                                     >
                                         No offers found.
@@ -503,6 +504,9 @@ export default function OffersAndBanners() {
                                         className={`${index % 2 === 0 ? "bg-white" : "bg-[#F4F6F8]"
                                             } hover:bg-[#EEF2F6] transition`}
                                     >
+                                        <td className="px-6 py-4 font-bold text-[#127690] text-center">
+                                            {index + 1}
+                                        </td>
                                         <td className="px-6 py-4 font-semibold text-[#127690]">
                                             {offer.id}
                                         </td>
@@ -542,8 +546,8 @@ export default function OffersAndBanners() {
                                                 <button
                                                     onClick={() => handleToggleStatus(offer.id)}
                                                     className={`transition-colors ${offer.status === "Active"
-                                                            ? "text-yellow-500 hover:text-yellow-700"
-                                                            : "text-green-500 hover:text-green-700"
+                                                        ? "text-yellow-500 hover:text-yellow-700"
+                                                        : "text-green-500 hover:text-green-700"
                                                         }`}
                                                     title={
                                                         offer.status === "Active"
@@ -588,8 +592,8 @@ export default function OffersAndBanners() {
                                 key={p}
                                 onClick={() => setPreviewPlacement(p)}
                                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${previewPlacement === p
-                                        ? "bg-[#127690] text-white border-[#127690]"
-                                        : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                                    ? "bg-[#127690] text-white border-[#127690]"
+                                    : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
                                     }`}
                             >
                                 {p}

@@ -113,3 +113,51 @@ export const approveRetailerAPI = (userId) => {
 export const rejectRetailerAPI = (userId, reason) => {
   return axiosInstance.post(`superadmin/kyc/reject/${userId}/`, reason);
 };
+
+// ERP - Get Master Data (Products)
+export const getProductsAPI = () => {
+  return axiosInstance.get("erp/ws_c2_services_get_master_data/");
+};
+
+// ERP - Update Product Info (SuperAdmin Only)
+export const updateProductInfoAPI = (data) => {
+  return axiosInstance.post("erp/update_product_info/", data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+
+// ==================== CATEGORIES ENDPOINTS ====================
+
+export const getCategoriesAPI = () => {
+  return axiosInstance.get("superadmin/add-category/");
+};
+
+export const addCategoryAPI = (data) => {
+  return axiosInstance.post("superadmin/add-category/", data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+
+export const updateCategoryAPI = (id, data) => {
+  return axiosInstance.put(`superadmin/add-category/${id}/`, data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+
+export const deleteCategoryAPI = (id) => {
+  return axiosInstance.delete(`superadmin/add-category/${id}/`);
+};
+
+// ==================== BRANDS ENDPOINTS (Renamed from Category) ====================
+
+// SuperAdmin - Assign Brand to Product
+export const assignBrandToProductAPI = (data) => {
+  return axiosInstance.post("superadmin/assign-brand/", data);
+};
+

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import CustomUser, KYC, OTP
+from .models import CustomUser, KYC, OTP, Category, ProductInfo, ProductImage
 
 
 @admin.register(CustomUser)
@@ -42,20 +42,20 @@ class CustomUserAdmin(admin.ModelAdmin):
 
 @admin.register(KYC)
 class KYCAdmin(admin.ModelAdmin):
-    list_display = ['user_name', 'shop_name', 'status_badge', 'submitted_at', 'approved_at']
+    list_display = ['user_name', 'customer_name', 'shop_name', 'status_badge', 'submitted_at', 'approved_at']
     list_filter = ['status', 'submitted_at', 'approved_at']
-    search_fields = ['user__username', 'user__email', 'shop_name', 'shop_email', 'shop_phone', 'gst_number', 'drug_license_number']
+    search_fields = ['user__username', 'user__email', 'customer_name', 'customer_id', 'shop_name', 'shop_email', 'shop_phone', 'gst_number', 'drug_license_number']
     readonly_fields = ['submitted_at', 'approved_at', 'user', 'drug_license_preview', 'id_proof_preview', 'store_photo_preview']
     
     fieldsets = (
         ('User Information', {
             'fields': ('user',)
         }),
+        ('Customer Information', {
+            'fields': ('customer_name', 'customer_id', 'customer_address')
+        }),
         ('Shop Details', {
             'fields': ('shop_name', 'shop_address', 'shop_email', 'shop_phone')
-        }),
-        ('Customer Details', {
-            'fields': ('customer_address',)
         }),
         ('Business Documents', {
             'fields': ('gst_number', 'drug_license_number', 'drug_license', 'drug_license_preview', 'id_proof', 'id_proof_preview', 'store_photo', 'store_photo_preview')
@@ -74,6 +74,10 @@ class KYCAdmin(admin.ModelAdmin):
     def user_name(self, obj):
         return obj.user.username
     user_name.short_description = 'User'
+    
+    def customer_name(self, obj):
+        return obj.customer_name if obj.customer_name else '-'
+    customer_name.short_description = 'Customer Name'
     
     def drug_license_preview(self, obj):
         if obj.drug_license:
@@ -146,3 +150,88 @@ class OTPAdmin(admin.ModelAdmin):
     def user_name(self, obj):
         return obj.user.username
     user_name.short_description = 'User'
+
+
+# ==================== PRODUCT INFO ADMIN ====================
+
+from .models import ProductInfo, ProductImage
+
+
+class ProductImageInline(admin.TabularInline):
+    """Inline admin for ProductImage"""
+    model = ProductImage
+    extra = 1
+    fields = ['image', 'image_order']
+    ordering = ['image_order']
+
+
+@admin.register(ProductInfo)
+class ProductInfoAdmin(admin.ModelAdmin):
+    list_display = ['item_code', 'item_name', 'subheading_preview', 'image_count', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['item__item_code', 'item__item_name', 'subheading', 'description']
+    readonly_fields = ['created_at', 'updated_at']
+    inlines = [ProductImageInline]
+    fieldsets = (
+        ('Product', {
+            'fields': ('item', 'category')
+        }),
+        ('Details', {
+            'fields': ('subheading', 'description', 'type_label')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def item_code(self, obj):
+        return obj.item.item_code
+    item_code.short_description = "Item Code"
+    
+    def item_name(self, obj):
+        return obj.item.item_name
+    item_name.short_description = "Item Name"
+    
+    def subheading_preview(self, obj):
+        return obj.subheading if obj.subheading else "No subheading"
+    subheading_preview.short_description = "Subheading"
+    
+    def image_count(self, obj):
+        return obj.images.count()
+    image_count.short_description = "Images Count"
+
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    """Admin for managing product brands/categories"""
+    list_display = ['name', 'icon_preview', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name']
+    readonly_fields = ['created_at', 'updated_at', 'icon_preview']
+    fieldsets = (
+        ('Brand Information', {
+            'fields': ('name', 'icon')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Preview', {
+            'fields': ('icon_preview',),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def icon_preview(self, obj):
+        """Display brand logo preview"""
+        if obj.icon:
+            return format_html(
+                '<img src="{}" width="100" height="100" style="border-radius: 5px;" />',
+                obj.icon.url
+            )
+        return "No icon uploaded"
+    icon_preview.short_description = "Icon Preview"

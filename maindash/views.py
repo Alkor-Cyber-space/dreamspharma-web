@@ -1,13 +1,19 @@
-from rest_framework import status
+from rest_framework import status, serializers
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, logout
 from django.shortcuts import get_object_or_404
-from dreamspharmaapp.models import KYC
-from .serializers import RetailerKYCDetailSerializer, ApproveKYCSerializer, RejectKYCSerializer
+from django.utils import timezone
+from dreamspharmaapp.models import KYC, SalesOrder, Category, ItemMaster, ProductInfo, Offer
+from .serializers import (
+    RetailerKYCDetailSerializer, ApproveKYCSerializer, RejectKYCSerializer, DashboardStatisticsSerializer, ChangePasswordSerializer, SuperAdminProfileSerializer, SuperAdminProfileImageSerializer, AddCategorySerializer
+)
+from dreamspharmaapp.serializers import OfferSerializer, OfferCreateUpdateSerializer, OfferListSerializer
+import logging
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class SuperAdminGetAllRetailersView(APIView):
@@ -47,11 +53,11 @@ class SuperAdminGetAllRetailersView(APIView):
 class ApproveKYCView(APIView):
     """
     API endpoint for superadmin to approve KYC.
-    POST /api/superadmin/kyc/approve/ - Approve a retailer's KYC
+    POST /api/superadmin/kyc/approve/<user_id>/ - Approve a retailer's KYC
     """
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request, user_id):
         """Approve KYC for a retailer"""
         # Check if user is a superadmin
         if request.user.role != 'SUPERADMIN':
@@ -59,7 +65,8 @@ class ApproveKYCView(APIView):
                 'error': 'Only Super Admin can approve KYC'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        serializer = ApproveKYCSerializer(data=request.data)
+        data = {'user_id': user_id}
+        serializer = ApproveKYCSerializer(data=data)
         
         if serializer.is_valid():
             kyc = serializer.save()
@@ -79,11 +86,11 @@ class ApproveKYCView(APIView):
 class RejectKYCView(APIView):
     """
     API endpoint for superadmin to reject KYC.
-    POST /api/superadmin/kyc/reject/ - Reject a retailer's KYC with reason
+    POST /api/superadmin/kyc/reject/<user_id>/ - Reject a retailer's KYC with reason
     """
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request, user_id):
         """Reject KYC for a retailer"""
         # Check if user is a superadmin
         if request.user.role != 'SUPERADMIN':
@@ -91,7 +98,8 @@ class RejectKYCView(APIView):
                 'error': 'Only Super Admin can reject KYC'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        serializer = RejectKYCSerializer(data=request.data)
+        data = {'user_id': user_id, **request.data}
+        serializer = RejectKYCSerializer(data=data)
         
         if serializer.is_valid():
             kyc = serializer.save()
@@ -107,3 +115,848 @@ class RejectKYCView(APIView):
             'details': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
 
+
+class DashboardStatisticsView(APIView):
+    """
+    API endpoint for superadmin to get dashboard statistics.
+    GET /api/superadmin/dashboard/statistics/ - Get dashboard statistics
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get dashboard statistics for superadmin"""
+        # Check if user is a superadmin
+        if request.user.role != 'SUPERADMIN':
+            return Response({
+                'error': 'Only Super Admin can access this endpoint'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Calculate statistics
+        total_retailers = User.objects.filter(role='RETAILER').count()
+        pending_kyc = KYC.objects.filter(status='PENDING').count()
+        total_orders = SalesOrder.objects.count()
+        
+        # Prepare data
+        stats_data = {
+            'total_retailers': total_retailers,
+            'pending_kyc': pending_kyc,
+            'total_orders': total_orders,
+        }
+        
+        serializer = DashboardStatisticsSerializer(stats_data)
+        
+        return Response({
+            'message': 'Dashboard statistics fetched successfully',
+            'statistics': serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+class ChangePasswordView(APIView):
+    """
+    API endpoint for super admin to change password.
+    POST /api/superadmin/change-password/ - Change password for logged-in super admin
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Change password for super admin"""
+        # Check if user is a superadmin
+        if request.user.role != 'SUPERADMIN':
+            return Response({
+                'error': 'Only Super Admin can access this endpoint'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = ChangePasswordSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            try:
+                serializer.save(user=request.user)
+                return Response({
+                    'message': 'Password changed successfully'
+                }, status=status.HTTP_200_OK)
+            except serializers.ValidationError as e:
+                return Response({
+                    'error': str(e.detail[0])
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({
+            'error': 'Password change failed',
+            'details': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GetSuperAdminProfileView(APIView):
+    """
+    API endpoint for super admin to get profile information.
+    GET /api/superadmin/profile/ - Get super admin profile info (username, email, phone, image)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get profile information for super admin"""
+        # Check if user is a superadmin
+        if request.user.role != 'SUPERADMIN':
+            return Response({
+                'error': 'Only Super Admin can access this endpoint'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = SuperAdminProfileSerializer(request.user)
+        
+        return Response({
+            'message': 'Profile information fetched successfully',
+            'profile': serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+class ProfileImageView(APIView):
+    """
+    Profile Image Management - Upload and Delete
+    POST: Upload profile image
+    DELETE: Delete profile image
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _check_superadmin(self, request):
+        """Check if user is SUPERADMIN"""
+        return request.user.role == 'SUPERADMIN'
+
+    def post(self, request):
+        """Upload profile image for super admin"""
+        if request.user.role != 'SUPERADMIN':
+            return Response({
+                'code': '403',
+                'type': 'uploadProfileImage',
+                'message': 'Forbidden - Only SUPERADMIN can access this endpoint'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = SuperAdminProfileImageSerializer(
+            request.user, 
+            data=request.data, 
+            partial=True
+        )
+        
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                logger.info(f"[PROFILE_IMAGE_UPLOADED] User: {request.user.username}")
+                
+                return Response({
+                    'code': '200',
+                    'type': 'uploadProfileImage',
+                    'message': 'Profile image uploaded successfully',
+                    'data': {
+                        'profile_image': serializer.data['profile_image']
+                    }
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"Error uploading profile image: {str(e)}")
+                return Response({
+                    'code': '500',
+                    'type': 'uploadProfileImage',
+                    'message': f'Error uploading image: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'code': '400',
+            'type': 'uploadProfileImage',
+            'message': 'Image upload failed',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        """Update profile image for super admin"""
+        if request.user.role != 'SUPERADMIN':
+            return Response({
+                'code': '403',
+                'type': 'updateProfileImage',
+                'message': 'Forbidden - Only SUPERADMIN can access this endpoint'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = SuperAdminProfileImageSerializer(
+            request.user, 
+            data=request.data, 
+            partial=True
+        )
+        
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                logger.info(f"[PROFILE_IMAGE_UPDATED] User: {request.user.username}")
+                
+                return Response({
+                    'code': '200',
+                    'type': 'updateProfileImage',
+                    'message': 'Profile image updated successfully',
+                    'data': {
+                        'profile_image': serializer.data['profile_image']
+                    }
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"Error updating profile image: {str(e)}")
+                return Response({
+                    'code': '500',
+                    'type': 'updateProfileImage',
+                    'message': f'Error updating image: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'code': '400',
+            'type': 'updateProfileImage',
+            'message': 'Image update failed',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        """Delete profile image for super admin"""
+        if request.user.role != 'SUPERADMIN':
+            return Response({
+                'code': '403',
+                'type': 'deleteProfileImage',
+                'message': 'Forbidden - Only SUPERADMIN can access this endpoint'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        if not request.user.profile_image:
+            return Response({
+                'code': '404',
+                'type': 'deleteProfileImage',
+                'message': 'No profile image found to delete'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        try:
+            if request.user.profile_image.storage.exists(request.user.profile_image.name):
+                request.user.profile_image.storage.delete(request.user.profile_image.name)
+            
+            request.user.profile_image = None
+            request.user.save()
+            
+            logger.info(f"[PROFILE_IMAGE_DELETED] User: {request.user.username}")
+            
+            return Response({
+                'code': '200',
+                'type': 'deleteProfileImage',
+                'message': 'Profile image deleted successfully'
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"Error deleting profile image: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'deleteProfileImage',
+                'message': f'Error deleting image: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class SuperAdminLogoutView(APIView):
+    """
+    API endpoint for super admin to logout.
+    POST /api/superadmin/logout/ - Logout super admin
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Logout super admin"""
+        # Check if user is a superadmin
+        if request.user.role != 'SUPERADMIN':
+            return Response({
+                'error': 'Only Super Admin can access this endpoint'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        logout(request)
+        
+        return Response({
+            'message': 'Logout successful'
+        }, status=status.HTTP_205_RESET_CONTENT)
+
+
+class AddCategoryView(APIView):
+    """
+    Brand/Category Management
+    GET: List all categories or get by ID
+    POST: Create a new category/brand
+    PUT: Update existing category or create if not exists
+    DELETE: Delete a category
+    SUPERADMIN ONLY
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def _check_superadmin(self, request):
+        """Check if user is SUPERADMIN"""
+        if getattr(request.user, 'role', None) != 'SUPERADMIN':
+            return False
+        return True
+    
+    def get(self, request, category_id=None):
+        """Get all categories or specific category by ID"""
+        if not self._check_superadmin(request):
+            return Response({
+                'code': '403',
+                'type': 'getCategory',
+                'message': 'Forbidden - Only SUPERADMIN can view categories'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            if category_id:
+                # Get specific category by ID from URL
+                category = Category.objects.get(id=category_id)
+                return Response({
+                    'code': '200',
+                    'type': 'getCategory',
+                    'message': 'Category retrieved successfully',
+                    'data': {
+                        'id': category.id,
+                        'name': category.name,
+                        'icon': request.build_absolute_uri(category.icon.url) if category.icon else None,
+                        'is_active': category.is_active,
+                        'created_at': category.created_at
+                    }
+                }, status=status.HTTP_200_OK)
+            else:
+                # Get all categories
+                categories = Category.objects.all().order_by('-created_at')
+                categories_data = [{
+                    'id': cat.id,
+                    'name': cat.name,
+                    'icon': request.build_absolute_uri(cat.icon.url) if cat.icon else None,
+                    'is_active': cat.is_active,
+                    'created_at': cat.created_at
+                } for cat in categories]
+                
+                return Response({
+                    'code': '200',
+                    'type': 'getCategory',
+                    'message': f'Found {len(categories_data)} categories',
+                    'count': len(categories_data),
+                    'data': categories_data
+                }, status=status.HTTP_200_OK)
+        
+        except Category.DoesNotExist:
+            return Response({
+                'code': '404',
+                'type': 'getCategory',
+                'message': f'Category with ID {category_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            logger.error(f"Error retrieving category: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'getCategory',
+                'message': f'Error retrieving category: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request):
+        """Create a new category/brand"""
+        if not self._check_superadmin(request):
+            return Response({
+                'code': '403',
+                'type': 'addCategory',
+                'message': 'Forbidden - Only SUPERADMIN can add categories'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = AddCategorySerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                category = serializer.save()
+                
+                logger.info(f"[CATEGORY_CREATED] Name: {category.name} | Created by: {request.user.username}")
+                
+                return Response({
+                    'code': '200',
+                    'type': 'addCategory',
+                    'message': 'Category created successfully',
+                    'data': {
+                        'id': category.id,
+                        'name': category.name,
+                        'icon': request.build_absolute_uri(category.icon.url) if category.icon else None,
+                        'is_active': category.is_active,
+                        'created_at': category.created_at
+                    }
+                }, status=status.HTTP_201_CREATED)
+            
+            except Exception as e:
+                logger.error(f"Error creating category: {str(e)}")
+                return Response({
+                    'code': '500',
+                    'type': 'addCategory',
+                    'message': f'Error creating category: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'code': '400',
+            'type': 'addCategory',
+            'message': 'Invalid parameters',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request, category_id=None):
+        """Update existing category - ID in URL"""
+        if not self._check_superadmin(request):
+            return Response({
+                'code': '403',
+                'type': 'updateCategory',
+                'message': 'Forbidden - Only SUPERADMIN can update categories'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        name = request.data.get('name')
+        
+        # ID is required for PUT (update only)
+        if not category_id:
+            return Response({
+                'code': '400',
+                'type': 'updateCategory',
+                'message': 'Category ID is required in URL. Use /add-category/{id}/'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not name:
+            return Response({
+                'code': '400',
+                'type': 'updateCategory',
+                'message': 'Category name is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Get existing category
+            category = Category.objects.get(id=category_id)
+            old_name = category.name
+            
+            # Only check for duplicates if name is being changed
+            if name.lower() != old_name.lower():
+                # Check if new name already exists (for other categories)
+                if Category.objects.filter(name__iexact=name).exclude(id=category_id).exists():
+                    return Response({
+                        'code': '400',
+                        'type': 'updateCategory',
+                        'message': f'Another category with name "{name}" already exists'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Update category
+            category.name = name
+            category.is_active = request.data.get('is_active', category.is_active)
+            
+            if 'icon' in request.FILES:
+                category.icon = request.FILES['icon']
+            
+            category.save()
+            
+            logger.info(f"[CATEGORY_UPDATED] ID: {category_id} | Old Name: {old_name} | New Name: {name} | Updated by: {request.user.username}")
+            
+            return Response({
+                'code': '200',
+                'type': 'updateCategory',
+                'message': 'Category updated successfully',
+                'data': {
+                    'id': category.id,
+                    'name': category.name,
+                    'icon': request.build_absolute_uri(category.icon.url) if category.icon else None,
+                    'is_active': category.is_active,
+                    'created_at': category.created_at
+                }
+            }, status=status.HTTP_200_OK)
+        
+        except Category.DoesNotExist:
+            return Response({
+                'code': '404',
+                'type': 'updateCategory',
+                'message': f'Category with ID {category_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            logger.error(f"Error updating category: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'updateCategory',
+                'message': f'Error updating category: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def delete(self, request, category_id=None):
+        """Delete a category - ID in URL"""
+        if not self._check_superadmin(request):
+            return Response({
+                'code': '403',
+                'type': 'deleteCategory',
+                'message': 'Forbidden - Only SUPERADMIN can delete categories'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # ID is required in URL
+        if not category_id:
+            return Response({
+                'code': '400',
+                'type': 'deleteCategory',
+                'message': 'Category ID is required in URL. Use /add-category/{id}/'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            category = Category.objects.get(id=category_id)
+            category_name = category.name
+            
+            # Check if category is used in any products
+            if ProductInfo.objects.filter(category_id=category_id).exists():
+                return Response({
+                    'code': '409',
+                    'type': 'deleteCategory',
+                    'message': f'Cannot delete category "{category_name}" - it is assigned to {ProductInfo.objects.filter(category_id=category_id).count()} product(s)'
+                }, status=status.HTTP_409_CONFLICT)
+            
+            category.delete()
+            
+            logger.info(f"[CATEGORY_DELETED] ID: {category_id} | Name: {category_name} | Deleted by: {request.user.username}")
+            
+            return Response({
+                'code': '200',
+                'type': 'deleteCategory',
+                'message': f'Category "{category_name}" deleted successfully'
+            }, status=status.HTTP_200_OK)
+        
+        except Category.DoesNotExist:
+            return Response({
+                'code': '404',
+                'type': 'deleteCategory',
+                'message': f'Category with ID {category_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            logger.error(f"Error deleting category: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'deleteCategory',
+                'message': f'Error deleting category: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class AssignBrandToProductView(APIView):
+    """
+    Assign brand/category to a product
+    POST/PUT: Assign brand to product
+    SUPERADMIN ONLY
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Assign brand to product"""
+        # Check if user is SUPERADMIN
+        if getattr(request.user, 'role', None) != 'SUPERADMIN':
+            return Response({
+                'code': '403',
+                'type': 'assignBrandToProduct',
+                'message': 'Forbidden - Only SUPERADMIN can assign brands to products'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        item_code = request.data.get('c_item_code')
+        brand_id = request.data.get('brand_id')
+        
+        if not item_code or not brand_id:
+            return Response({
+                'code': '400',
+                'type': 'assignBrandToProduct',
+                'message': 'c_item_code and brand_id are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Get the item
+            item = ItemMaster.objects.get(item_code=item_code)
+            
+            # Get or create ProductInfo
+            product_info, created = ProductInfo.objects.get_or_create(item=item)
+            
+            # Get the brand/category
+            brand = Category.objects.get(id=brand_id)
+            
+            # Assign brand to product
+            product_info.category = brand
+            product_info.save()
+            
+            logger.info(f"[BRAND_ASSIGNED] Item: {item_code} | Brand: {brand.name} | Brand ID: {brand_id} | Assigned by: {request.user.username}")
+            
+            return Response({
+                'code': '200',
+                'type': 'assignBrandToProduct',
+                'message': 'Brand assigned to product successfully',
+                'data': {
+                    'c_item_code': item_code,
+                    'brand_id': brand.id,
+                    'brand_name': brand.name,
+                    'brand_logo': request.build_absolute_uri(brand.icon.url) if brand.icon else ''
+                }
+            }, status=status.HTTP_200_OK)
+        
+        except ItemMaster.DoesNotExist:
+            return Response({
+                'code': '404',
+                'type': 'assignBrandToProduct',
+                'message': f'Item with code {item_code} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        except Category.DoesNotExist:
+            return Response({
+                'code': '404',
+                'type': 'assignBrandToProduct',
+                'message': f'Brand with ID {brand_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            logger.error(f"Error assigning brand to product: {str(e)}")
+            return Response({
+                'code': '500',
+                'type': 'assignBrandToProduct',
+                'message': f'Error assigning brand: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def put(self, request):
+        """PUT method - same as POST"""
+        return self.post(request)
+
+
+# ==================== OFFER MANAGEMENT VIEWS ====================
+
+class OfferListCreateView(APIView):
+    """
+    List all offers or create new offer (SuperAdmin only)
+    GET  /api/offers/?user_id=<retailer_id> - Retailers access with user_id (no auth token)
+    GET  /api/offers/ with auth token - SuperAdmins access with auth token
+    POST /api/offers/ - SuperAdmin only with auth token
+    """
+    
+    def get_permissions(self):
+        """
+        GET requests: No auth required for retailers, required for superadmins
+        POST requests: Auth required (IsAuthenticated)
+        """
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAuthenticated()]
+    
+    def get(self, request):
+        """Get list of offers - Retailers provide user_id, SuperAdmins use auth token"""
+        
+        # Check if user is authenticated (SuperAdmin with auth token)
+        if request.user and request.user.is_authenticated:
+            # SuperAdmin with auth token - allow all offers
+            pass
+        else:
+            # Unauthenticated request - retailer must provide user_id
+            user_id = request.query_params.get('user_id')
+            if not user_id:
+                return Response({
+                    'status': 'error',
+                    'message': 'user_id parameter is required for retailers without authentication'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate user_id belongs to a valid retailer
+            try:
+                retailer = User.objects.get(id=user_id, role='RETAILER')
+            except User.DoesNotExist:
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid user_id or user is not a retailer'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get filter parameters
+        placement = request.query_params.get('placement')
+        status_filter = request.query_params.get('status')
+        category_id = request.query_params.get('category_id')
+        
+        # Base queryset
+        offers = Offer.objects.all()
+        
+        # Apply filters
+        if placement:
+            offers = offers.filter(placement=placement)
+        
+        if status_filter:
+            try:
+                status_bool = status_filter.lower() == 'true'
+                offers = offers.filter(status=status_bool)
+            except:
+                pass
+        
+        if category_id:
+            offers = offers.filter(category_id=category_id)
+        
+        # Serialize with request context
+        serializer = OfferListSerializer(offers, many=True, context={'request': request})
+        
+        return Response({
+            'status': 'success',
+            'message': f'Retrieved {offers.count()} offers',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    def post(self, request):
+        """Create new offer (SuperAdmin only) - Requires auth token"""
+        # Check if user is authenticated
+        if not request.user or not request.user.is_authenticated:
+            return Response({
+                'status': 'error',
+                'message': 'Authentication required to create offers'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Check if user is superadmin
+        if request.user.role != 'SUPERADMIN' and not request.user.is_superuser:
+            return Response({
+                'status': 'error',
+                'message': 'Only SuperAdmin can create offers. Authentication token required.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = OfferCreateUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            offer = serializer.save()
+            return Response({
+                'status': 'success',
+                'message': 'Offer created successfully',
+                'data': OfferSerializer(offer).data
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response({
+            'status': 'error',
+            'message': 'Invalid offer data',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class OfferDetailView(APIView):
+    """
+    Get, update, or delete specific offer
+    GET    /api/offers/{offer_id}/
+    PUT    /api/offers/{offer_id}/
+    DELETE /api/offers/{offer_id}/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, offer_id):
+        """Get offer by offer_id"""
+        try:
+            return Offer.objects.get(offer_id=offer_id)
+        except Offer.DoesNotExist:
+            return None
+    
+    def get(self, request, offer_id):
+        """Get offer details"""
+        offer = self.get_object(offer_id)
+        if not offer:
+            return Response({
+                'status': 'error',
+                'message': 'Offer not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = OfferSerializer(offer)
+        return Response({
+            'status': 'success',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    def put(self, request, offer_id):
+        """Update offer (SuperAdmin only)"""
+        # Check permission
+        if request.user.role != 'SUPERADMIN' and not request.user.is_superuser:
+            return Response({
+                'status': 'error',
+                'message': 'Only SuperAdmin can update offers'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        offer = self.get_object(offer_id)
+        if not offer:
+            return Response({
+                'status': 'error',
+                'message': 'Offer not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = OfferCreateUpdateSerializer(offer, data=request.data, partial=True)
+        if serializer.is_valid():
+            offer = serializer.save()
+            return Response({
+                'status': 'success',
+                'message': 'Offer updated successfully',
+                'data': OfferSerializer(offer).data
+            }, status=status.HTTP_200_OK)
+        
+        return Response({
+            'status': 'error',
+            'message': 'Invalid offer data',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, offer_id):
+        """Delete offer (SuperAdmin only)"""
+        # Check permission
+        if request.user.role != 'SUPERADMIN' and not request.user.is_superuser:
+            return Response({
+                'status': 'error',
+                'message': 'Only SuperAdmin can delete offers'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        offer = self.get_object(offer_id)
+        if not offer:
+            return Response({
+                'status': 'error',
+                'message': 'Offer not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        offer.delete()
+        return Response({
+            'status': 'success',
+            'message': 'Offer deleted successfully'
+        }, status=status.HTTP_204_NO_CONTENT)
+
+
+class HomePageOffersView(APIView):
+    """
+    Get active homepage offers (Public endpoint)
+    GET /api/offers/homepage/
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get active homepage offers"""
+        today = timezone.now().date()
+        
+        # Get active homepage offers that are currently valid
+        offers = Offer.objects.filter(
+            status=True,
+            placement='homepage',
+            valid_from__lte=today,
+            valid_to__gte=today
+        )
+        
+        serializer = OfferListSerializer(offers, many=True)
+        return Response({
+            'status': 'success',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+class CategoryOffersView(APIView):
+    """
+    Get offers for specific category (Public endpoint)
+    GET /api/offers/category/{category_id}/
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request, category_id):
+        """Get category offers"""
+        today = timezone.now().date()
+        
+        # Check if category exists
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Category not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get active category offers that are currently valid
+        offers = Offer.objects.filter(
+            status=True,
+            placement='category',
+            category=category,
+            valid_from__lte=today,
+            valid_to__gte=today
+        )
+        
+        serializer = OfferListSerializer(offers, many=True)
+        return Response({
+            'status': 'success',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)

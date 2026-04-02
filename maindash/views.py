@@ -1,14 +1,15 @@
 from rest_framework import status, serializers
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model, logout
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from dreamspharmaapp.models import KYC, SalesOrder, Category, ItemMaster, ProductInfo
+from dreamspharmaapp.models import KYC, SalesOrder, Category, ItemMaster, ProductInfo, Offer
 from .serializers import (
     RetailerKYCDetailSerializer, ApproveKYCSerializer, RejectKYCSerializer, DashboardStatisticsSerializer, ChangePasswordSerializer, SuperAdminProfileSerializer, SuperAdminProfileImageSerializer, AddCategorySerializer
 )
+from dreamspharmaapp.serializers import OfferSerializer, OfferCreateUpdateSerializer, OfferListSerializer
 import logging
 
 User = get_user_model()
@@ -705,3 +706,257 @@ class AssignBrandToProductView(APIView):
     def put(self, request):
         """PUT method - same as POST"""
         return self.post(request)
+
+
+# ==================== OFFER MANAGEMENT VIEWS ====================
+
+class OfferListCreateView(APIView):
+    """
+    List all offers or create new offer (SuperAdmin only)
+    GET  /api/offers/?user_id=<retailer_id> - Retailers access with user_id (no auth token)
+    GET  /api/offers/ with auth token - SuperAdmins access with auth token
+    POST /api/offers/ - SuperAdmin only with auth token
+    """
+    
+    def get_permissions(self):
+        """
+        GET requests: No auth required for retailers, required for superadmins
+        POST requests: Auth required (IsAuthenticated)
+        """
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAuthenticated()]
+    
+    def get(self, request):
+        """Get list of offers - Retailers provide user_id, SuperAdmins use auth token"""
+        
+        # Check if user is authenticated (SuperAdmin with auth token)
+        if request.user and request.user.is_authenticated:
+            # SuperAdmin with auth token - allow all offers
+            pass
+        else:
+            # Unauthenticated request - retailer must provide user_id
+            user_id = request.query_params.get('user_id')
+            if not user_id:
+                return Response({
+                    'status': 'error',
+                    'message': 'user_id parameter is required for retailers without authentication'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate user_id belongs to a valid retailer
+            try:
+                retailer = User.objects.get(id=user_id, role='RETAILER')
+            except User.DoesNotExist:
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid user_id or user is not a retailer'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get filter parameters
+        placement = request.query_params.get('placement')
+        status_filter = request.query_params.get('status')
+        category_id = request.query_params.get('category_id')
+        
+        # Base queryset
+        offers = Offer.objects.all()
+        
+        # Apply filters
+        if placement:
+            offers = offers.filter(placement=placement)
+        
+        if status_filter:
+            try:
+                status_bool = status_filter.lower() == 'true'
+                offers = offers.filter(status=status_bool)
+            except:
+                pass
+        
+        if category_id:
+            offers = offers.filter(category_id=category_id)
+        
+        # Serialize with request context
+        serializer = OfferListSerializer(offers, many=True, context={'request': request})
+        
+        return Response({
+            'status': 'success',
+            'message': f'Retrieved {offers.count()} offers',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    def post(self, request):
+        """Create new offer (SuperAdmin only) - Requires auth token"""
+        # Check if user is authenticated
+        if not request.user or not request.user.is_authenticated:
+            return Response({
+                'status': 'error',
+                'message': 'Authentication required to create offers'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Check if user is superadmin
+        if request.user.role != 'SUPERADMIN' and not request.user.is_superuser:
+            return Response({
+                'status': 'error',
+                'message': 'Only SuperAdmin can create offers. Authentication token required.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = OfferCreateUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            offer = serializer.save()
+            return Response({
+                'status': 'success',
+                'message': 'Offer created successfully',
+                'data': OfferSerializer(offer).data
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response({
+            'status': 'error',
+            'message': 'Invalid offer data',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class OfferDetailView(APIView):
+    """
+    Get, update, or delete specific offer
+    GET    /api/offers/{offer_id}/
+    PUT    /api/offers/{offer_id}/
+    DELETE /api/offers/{offer_id}/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, offer_id):
+        """Get offer by offer_id"""
+        try:
+            return Offer.objects.get(offer_id=offer_id)
+        except Offer.DoesNotExist:
+            return None
+    
+    def get(self, request, offer_id):
+        """Get offer details"""
+        offer = self.get_object(offer_id)
+        if not offer:
+            return Response({
+                'status': 'error',
+                'message': 'Offer not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = OfferSerializer(offer)
+        return Response({
+            'status': 'success',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    def put(self, request, offer_id):
+        """Update offer (SuperAdmin only)"""
+        # Check permission
+        if request.user.role != 'SUPERADMIN' and not request.user.is_superuser:
+            return Response({
+                'status': 'error',
+                'message': 'Only SuperAdmin can update offers'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        offer = self.get_object(offer_id)
+        if not offer:
+            return Response({
+                'status': 'error',
+                'message': 'Offer not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = OfferCreateUpdateSerializer(offer, data=request.data, partial=True)
+        if serializer.is_valid():
+            offer = serializer.save()
+            return Response({
+                'status': 'success',
+                'message': 'Offer updated successfully',
+                'data': OfferSerializer(offer).data
+            }, status=status.HTTP_200_OK)
+        
+        return Response({
+            'status': 'error',
+            'message': 'Invalid offer data',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, offer_id):
+        """Delete offer (SuperAdmin only)"""
+        # Check permission
+        if request.user.role != 'SUPERADMIN' and not request.user.is_superuser:
+            return Response({
+                'status': 'error',
+                'message': 'Only SuperAdmin can delete offers'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        offer = self.get_object(offer_id)
+        if not offer:
+            return Response({
+                'status': 'error',
+                'message': 'Offer not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        offer.delete()
+        return Response({
+            'status': 'success',
+            'message': 'Offer deleted successfully'
+        }, status=status.HTTP_204_NO_CONTENT)
+
+
+class HomePageOffersView(APIView):
+    """
+    Get active homepage offers (Public endpoint)
+    GET /api/offers/homepage/
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get active homepage offers"""
+        today = timezone.now().date()
+        
+        # Get active homepage offers that are currently valid
+        offers = Offer.objects.filter(
+            status=True,
+            placement='homepage',
+            valid_from__lte=today,
+            valid_to__gte=today
+        )
+        
+        serializer = OfferListSerializer(offers, many=True)
+        return Response({
+            'status': 'success',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+class CategoryOffersView(APIView):
+    """
+    Get offers for specific category (Public endpoint)
+    GET /api/offers/category/{category_id}/
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request, category_id):
+        """Get category offers"""
+        today = timezone.now().date()
+        
+        # Check if category exists
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Category not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get active category offers that are currently valid
+        offers = Offer.objects.filter(
+            status=True,
+            placement='category',
+            category=category,
+            valid_from__lte=today,
+            valid_to__gte=today
+        )
+        
+        serializer = OfferListSerializer(offers, many=True)
+        return Response({
+            'status': 'success',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)

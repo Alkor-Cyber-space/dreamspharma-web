@@ -246,7 +246,21 @@ class SuperAdminLoginView(APIView):
         
         user = serializer.validated_data['user']
         refresh = RefreshToken.for_user(user)
-        
+
+        # ── Audit log ──
+        try:
+            from maindash.views import log_audit
+            client_ip = get_client_ip(request)
+            log_audit(
+                action='Admin Login',
+                performed_by_user=user,
+                target_entity='System',
+                details=f'Successful login from IP {client_ip}',
+                category='System',
+            )
+        except Exception:
+            pass
+
         return Response({
             'message': 'Login successful',
             'access': str(refresh.access_token),
@@ -3546,6 +3560,19 @@ class CheckoutWithAddressView(APIView):
                 
                 logger.info(f"[ORDER_CHECKOUT] User {request.user.username} completed checkout with address ID {address_id} - Payment Method: {payment_method}")
                 logger.info(f"[ORDER_CREATED] Order {sales_order.order_id} created for {address.name} at {address.get_full_address()}")
+
+                # ── Audit log ──
+                try:
+                    from maindash.views import log_audit
+                    log_audit(
+                        action='Order Synced',
+                        performed_by_user=request.user,
+                        target_entity=sales_order.order_id,
+                        details=f'Order placed for {address.name} — Total: ₹{total_amount:.2f} via {payment_method}',
+                        category='Order',
+                    )
+                except Exception:
+                    pass
                 
                 # Prepare payment instructions based on payment method
                 payment_instructions = {

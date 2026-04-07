@@ -6,14 +6,43 @@ from django.contrib.auth import get_user_model, logout
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from dreamspharmaapp.models import KYC, SalesOrder, Category, ItemMaster, ProductInfo, Offer
+from .models import AuditLog
 from .serializers import (
-    RetailerKYCDetailSerializer, ApproveKYCSerializer, RejectKYCSerializer, DashboardStatisticsSerializer, ChangePasswordSerializer, SuperAdminProfileSerializer, SuperAdminProfileImageSerializer, AddCategorySerializer
+    RetailerKYCDetailSerializer, ApproveKYCSerializer, RejectKYCSerializer,
+    DashboardStatisticsSerializer, ChangePasswordSerializer, SuperAdminProfileSerializer,
+    SuperAdminProfileImageSerializer, AddCategorySerializer, AuditLogSerializer
 )
 from dreamspharmaapp.serializers import OfferSerializer, OfferCreateUpdateSerializer, OfferListSerializer
 import logging
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Helper: write an audit log entry (silent – never breaks the calling view)
+# ---------------------------------------------------------------------------
+def log_audit(action, performed_by_user=None, target_entity='', details='', category='System'):
+    """
+    Create an AuditLog record.  Called inside every admin action.
+    `performed_by_user` may be a CustomUser instance or None (for system actions).
+    """
+    try:
+        if performed_by_user and performed_by_user.is_authenticated:
+            performed_by_label = performed_by_user.get_full_name() or performed_by_user.username
+        else:
+            performed_by_label = 'System'
+
+        AuditLog.objects.create(
+            action=action,
+            performed_by=performed_by_label,
+            performed_by_user=performed_by_user if (performed_by_user and performed_by_user.is_authenticated) else None,
+            target_entity=target_entity,
+            details=details,
+            category=category,
+        )
+    except Exception as exc:
+        logger.error(f"[AUDIT_LOG_FAILED] {exc}")
 
 
 class SuperAdminGetAllRetailersView(APIView):
@@ -71,7 +100,17 @@ class ApproveKYCView(APIView):
         if serializer.is_valid():
             kyc = serializer.save()
             kyc_serializer = RetailerKYCDetailSerializer(kyc)
-            
+
+            # ── Audit log ──
+            shop = getattr(kyc, 'shop_name', '') or ''
+            log_audit(
+                action='KYC Approved',
+                performed_by_user=request.user,
+                target_entity=f"{shop} (RET{str(user_id).zfill(3)})",
+                details='All documents verified and approved',
+                category='KYC',
+            )
+
             return Response({
                 'message': 'KYC approved successfully',
                 'kyc': kyc_serializer.data
@@ -104,7 +143,18 @@ class RejectKYCView(APIView):
         if serializer.is_valid():
             kyc = serializer.save()
             kyc_serializer = RetailerKYCDetailSerializer(kyc)
-            
+
+            # ── Audit log ──
+            shop = getattr(kyc, 'shop_name', '') or ''
+            reason = request.data.get('rejection_reason', 'No reason provided')
+            log_audit(
+                action='KYC Rejected',
+                performed_by_user=request.user,
+                target_entity=f"{shop} (RET{str(user_id).zfill(3)})",
+                details=f"{reason}",
+                category='KYC',
+            )
+
             return Response({
                 'message': 'KYC rejected successfully',
                 'kyc': kyc_serializer.data
@@ -361,7 +411,16 @@ class SuperAdminLogoutView(APIView):
             return Response({
                 'error': 'Only Super Admin can access this endpoint'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
+        # ── Audit log ──
+        log_audit(
+            action='Admin Logout',
+            performed_by_user=request.user,
+            target_entity='System',
+            details=f'Super-admin {request.user.username} logged out',
+            category='System',
+        )
+
         logout(request)
         
         return Response({
@@ -460,7 +519,16 @@ class AddCategoryView(APIView):
                 category = serializer.save()
                 
                 logger.info(f"[CATEGORY_CREATED] Name: {category.name} | Created by: {request.user.username}")
-                
+
+                # ── Audit log ──
+                log_audit(
+                    action='Category Created',
+                    performed_by_user=request.user,
+                    target_entity=category.name,
+                    details=f'New category "{category.name}" created',
+                    category='Category',
+                )
+
                 return Response({
                     'code': '200',
                     'type': 'addCategory',
@@ -540,7 +608,16 @@ class AddCategoryView(APIView):
             category.save()
             
             logger.info(f"[CATEGORY_UPDATED] ID: {category_id} | Old Name: {old_name} | New Name: {name} | Updated by: {request.user.username}")
-            
+
+            # ── Audit log ──
+            log_audit(
+                action='Category Updated',
+                performed_by_user=request.user,
+                target_entity=name,
+                details=f'Category renamed from "{old_name}" to "{name}"' if old_name != name else f'Category "{name}" details updated',
+                category='Category',
+            )
+
             return Response({
                 'code': '200',
                 'type': 'updateCategory',
@@ -601,7 +678,16 @@ class AddCategoryView(APIView):
             category.delete()
             
             logger.info(f"[CATEGORY_DELETED] ID: {category_id} | Name: {category_name} | Deleted by: {request.user.username}")
-            
+
+            # ── Audit log ──
+            log_audit(
+                action='Category Deleted',
+                performed_by_user=request.user,
+                target_entity=category_name,
+                details=f'Category "{category_name}" permanently deleted',
+                category='Category',
+            )
+
             return Response({
                 'code': '200',
                 'type': 'deleteCategory',
@@ -802,6 +888,16 @@ class OfferListCreateView(APIView):
         serializer = OfferCreateUpdateSerializer(data=request.data)
         if serializer.is_valid():
             offer = serializer.save()
+
+            # ── Audit log ──
+            log_audit(
+                action='Offer Created',
+                performed_by_user=request.user,
+                target_entity=offer.offer_id,
+                details=f'Offer "{offer.title}" created (valid {offer.valid_from} – {offer.valid_to})',
+                category='Offer',
+            )
+
             return Response({
                 'status': 'success',
                 'message': 'Offer created successfully',
@@ -865,6 +961,16 @@ class OfferDetailView(APIView):
         serializer = OfferCreateUpdateSerializer(offer, data=request.data, partial=True)
         if serializer.is_valid():
             offer = serializer.save()
+
+            # ── Audit log ──
+            log_audit(
+                action='Offer Updated',
+                performed_by_user=request.user,
+                target_entity=offer.offer_id,
+                details=f'Offer "{offer.title}" updated',
+                category='Offer',
+            )
+
             return Response({
                 'status': 'success',
                 'message': 'Offer updated successfully',
@@ -893,7 +999,19 @@ class OfferDetailView(APIView):
                 'message': 'Offer not found'
             }, status=status.HTTP_404_NOT_FOUND)
         
+        offer_title = offer.title
+        offer_id_val = offer.offer_id
         offer.delete()
+
+        # ── Audit log ──
+        log_audit(
+            action='Offer Deleted',
+            performed_by_user=request.user,
+            target_entity=offer_id_val,
+            details=f'Offer "{offer_title}" deleted',
+            category='Offer',
+        )
+
         return Response({
             'status': 'success',
             'message': 'Offer deleted successfully'
@@ -958,5 +1076,76 @@ class CategoryOffersView(APIView):
         serializer = OfferListSerializer(offers, many=True)
         return Response({
             'status': 'success',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+# ============================================================================
+# AUDIT LOG VIEWS
+# ============================================================================
+
+class AuditLogListView(APIView):
+    """
+    GET /api/superadmin/audit-logs/
+    Returns paginated audit logs for the admin dashboard.
+
+    Query params:
+      - category  : filter by category (KYC, ERP, Refund, System, Order, Category, Offer, Product)
+      - search    : search across action, performed_by, target_entity, details
+      - page      : page number (default 1)
+      - page_size : results per page (default 20, max 100)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'SUPERADMIN':
+            return Response({
+                'code': '403',
+                'type': 'auditLogs',
+                'message': 'Only Super Admin can view audit logs'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        queryset = AuditLog.objects.all()
+
+        # ── Filters ────────────────────────────────────────────────────────
+        category = request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(category__iexact=category)
+
+        search = request.query_params.get('search', '').strip()
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(action__icontains=search)
+                | Q(performed_by__icontains=search)
+                | Q(target_entity__icontains=search)
+                | Q(details__icontains=search)
+            )
+
+        # ── Pagination ─────────────────────────────────────────────────────
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(100, max(1, int(request.query_params.get('page_size', 20))))
+        except (ValueError, TypeError):
+            page = 1
+            page_size = 20
+
+        total = queryset.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+        logs = queryset[start:end]
+
+        serializer = AuditLogSerializer(logs, many=True)
+
+        return Response({
+            'code': '200',
+            'type': 'auditLogs',
+            'message': f'Retrieved {len(serializer.data)} audit log(s)',
+            'pagination': {
+                'total': total,
+                'page': page,
+                'page_size': page_size,
+                'total_pages': (total + page_size - 1) // page_size,
+            },
             'data': serializer.data
         }, status=status.HTTP_200_OK)

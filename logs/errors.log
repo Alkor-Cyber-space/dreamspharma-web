@@ -1037,3 +1037,79 @@ django.db.utils.ProgrammingError: relation "admin_notifications" does not exist
 LINE 1: INSERT INTO "admin_notifications" ("title", "message", "noti...
                     ^
 
+[ERROR] 2026-04-07 09:41:41 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:41:41 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:41:41 erp_token_service initialize_erp_token:211 - [ERP_TOKEN] [FAILED] Failed to initialize ERP token
+[ERROR] 2026-04-07 09:48:31 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:48:31 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:48:31 erp_token_service initialize_erp_token:211 - [ERP_TOKEN] [FAILED] Failed to initialize ERP token
+[ERROR] 2026-04-07 09:51:24 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:51:24 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:56:45 sync_itemmaster handle:90 - ERP connection error during sync: HTTPConnectionPool(host='localhost', port=44000): Max retries exceeded with url: /ws_c2_services_get_master_data (Caused by NewConnectionError("HTTPConnection(host='localhost', port=44000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[ERROR] 2026-04-07 09:58:44 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:58:44 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:58:45 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:58:45 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:58:45 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:58:45 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:58:45 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:58:45 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:58:48 views fetch_all_items_from_erp:3235 - [ERP_ERROR] Failed to connect to ERP server
+[ERROR] 2026-04-07 09:58:49 log log_response:253 - Service Unavailable: /api/erp/ws_c2_services_get_master_data
+[ERROR] 2026-04-07 09:58:49 views get_serializer_context:5428 - [CATEGORIES] [FAILED] Failed to fetch ERP data: HTTPConnectionPool(host='localhost', port=44000): Max retries exceeded with url: /ws_c2_services_get_master_data?apiKey=MDNDMDAwMDAxXjIwMjYtMDQtMDYgMTg6MjI%3D (Caused by NewConnectionError("HTTPConnection(host='localhost', port=44000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[ERROR] 2026-04-07 09:58:49 views fetch_all_items_from_erp:3235 - [ERP_ERROR] Failed to connect to ERP server
+[ERROR] 2026-04-07 09:58:57 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:58:57 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:58:57 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:58:57 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:58:57 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:58:57 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:58:57 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:58:57 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:59:01 views get_serializer_context:5428 - [CATEGORIES] [FAILED] Failed to fetch ERP data: HTTPConnectionPool(host='localhost', port=44000): Max retries exceeded with url: /ws_c2_services_get_master_data?apiKey=MDNDMDAwMDAxXjIwMjYtMDQtMDYgMTg6MjI%3D (Caused by NewConnectionError("HTTPConnection(host='localhost', port=44000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[ERROR] 2026-04-07 09:59:01 log log_response:253 - Service Unavailable: /api/erp/ws_c2_services_get_master_data
+[ERROR] 2026-04-07 09:59:01 views fetch_all_items_from_erp:3235 - [ERP_ERROR] Failed to connect to ERP server
+[ERROR] 2026-04-07 09:59:01 views fetch_all_items_from_erp:3235 - [ERP_ERROR] Failed to connect to ERP server
+[ERROR] 2026-04-07 09:59:05 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:59:05 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:59:05 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:59:05 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:59:05 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:59:05 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:59:05 erp_token_service generate_erp_token_from_server:59 - [ERP_TOKEN] [FAILED] Connection error - Failed to reach ERP server at http://localhost:44000
+[ERROR] 2026-04-07 09:59:05 erp_token_service get_cached_erp_token:97 - [ERP_TOKEN] [FAILED] Failed to generate new token
+[ERROR] 2026-04-07 09:59:09 log log_response:253 - Service Unavailable: /api/erp/ws_c2_services_get_master_data
+[ERROR] 2026-04-07 09:59:09 views get_serializer_context:5428 - [CATEGORIES] [FAILED] Failed to fetch ERP data: HTTPConnectionPool(host='localhost', port=44000): Max retries exceeded with url: /ws_c2_services_get_master_data?apiKey=MDNDMDAwMDAxXjIwMjYtMDQtMDYgMTg6MjI%3D (Caused by NewConnectionError("HTTPConnection(host='localhost', port=44000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[ERROR] 2026-04-07 09:59:09 views fetch_all_items_from_erp:3235 - [ERP_ERROR] Failed to connect to ERP server
+[ERROR] 2026-04-07 09:59:09 views fetch_all_items_from_erp:3235 - [ERP_ERROR] Failed to connect to ERP server
+[ERROR] 2026-04-07 10:21:07 views _return_config:2012 - [ERP_CONFIG] [FAILED] Error retrieving ERP config: 'Settings' object has no attribute 'ERP_STORES'
+[ERROR] 2026-04-07 10:21:07 log log_response:253 - Internal Server Error: /api/erp/config
+[ERROR] 2026-04-07 10:21:09 views _return_config:2012 - [ERP_CONFIG] [FAILED] Error retrieving ERP config: 'Settings' object has no attribute 'ERP_STORES'
+[ERROR] 2026-04-07 10:21:09 log log_response:253 - Internal Server Error: /api/erp/config
+[ERROR] 2026-04-07 10:21:11 views _return_config:2012 - [ERP_CONFIG] [FAILED] Error retrieving ERP config: 'Settings' object has no attribute 'ERP_STORES'
+[ERROR] 2026-04-07 10:21:11 log log_response:253 - Internal Server Error: /api/erp/config
+[ERROR] 2026-04-07 10:21:13 views _return_config:2012 - [ERP_CONFIG] [FAILED] Error retrieving ERP config: 'Settings' object has no attribute 'ERP_STORES'
+[ERROR] 2026-04-07 10:21:13 log log_response:253 - Internal Server Error: /api/erp/config
+[ERROR] 2026-04-07 10:21:15 views _return_config:2012 - [ERP_CONFIG] [FAILED] Error retrieving ERP config: 'Settings' object has no attribute 'ERP_STORES'
+[ERROR] 2026-04-07 10:21:15 log log_response:253 - Internal Server Error: /api/erp/config
+[ERROR] 2026-04-07 10:21:17 views _return_config:2012 - [ERP_CONFIG] [FAILED] Error retrieving ERP config: 'Settings' object has no attribute 'ERP_STORES'
+[ERROR] 2026-04-07 10:21:17 log log_response:253 - Internal Server Error: /api/erp/config
+[ERROR] 2026-04-07 10:21:19 views _return_config:2012 - [ERP_CONFIG] [FAILED] Error retrieving ERP config: 'Settings' object has no attribute 'ERP_STORES'
+[ERROR] 2026-04-07 10:21:19 log log_response:253 - Internal Server Error: /api/erp/config
+[ERROR] 2026-04-07 10:21:21 views _return_config:2012 - [ERP_CONFIG] [FAILED] Error retrieving ERP config: 'Settings' object has no attribute 'ERP_STORES'
+[ERROR] 2026-04-07 10:21:21 log log_response:253 - Internal Server Error: /api/erp/config
+[ERROR] 2026-04-07 10:22:37 views _return_config:2012 - [ERP_CONFIG] [FAILED] Error retrieving ERP config: 'Settings' object has no attribute 'ERP_STORES'
+[ERROR] 2026-04-07 10:22:37 log log_response:253 - Internal Server Error: /api/erp/config
+[ERROR] 2026-04-07 10:44:04 views fetch_all_items_from_erp:3245 - [ERP_ERROR] Error fetching all items from ERP: ("Connection broken: ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)", ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None))
+[ERROR] 2026-04-07 10:50:41 views post:1626 - [ORDER_DUPLICATE] Rare race condition - Duplicate orderId 001202604070520415ACAD82D | Error: null value in column "sys_ip" of relation "dreamspharmaapp_salesorder" violates not-null constraint
+DETAIL:  Failing row contains (7, 03C000, 001, 001202604070520415ACAD82D, , , , , , f, 2026-04-07, 05:20:41.230248, , , , , , , , -, -, 0.00, 0.00, null, null, f, f, f, 0, , null, , 2026-04-07 05:20:41.231241+00, 2026-04-07 05:20:41.231257+00, 001, 26, 6, 1, null, 0.00, null).
+
+[ERROR] 2026-04-07 10:50:41 log log_response:253 - Internal Server Error: /api/erp/ws_c2_services_create_sale_order
+[ERROR] 2026-04-07 10:50:43 views post:1626 - [ORDER_DUPLICATE] Rare race condition - Duplicate orderId 00120260407052043912F54FB | Error: null value in column "sys_ip" of relation "dreamspharmaapp_salesorder" violates not-null constraint
+DETAIL:  Failing row contains (8, 03C000, 001, 00120260407052043912F54FB, , , , , , f, 2026-04-07, 05:20:43.403513, , , , , , , , -, -, 0.00, 0.00, null, null, f, f, f, 0, , null, , 2026-04-07 05:20:43.404148+00, 2026-04-07 05:20:43.404162+00, 001, 26, 6, 1, null, 0.00, null).
+
+[ERROR] 2026-04-07 10:50:43 log log_response:253 - Internal Server Error: /api/erp/ws_c2_services_create_sale_order
+[ERROR] 2026-04-07 10:50:45 views post:1626 - [ORDER_DUPLICATE] Rare race condition - Duplicate orderId 0012026040705204567A55A75 | Error: null value in column "sys_ip" of relation "dreamspharmaapp_salesorder" violates not-null constraint
+DETAIL:  Failing row contains (9, 03C000, 001, 0012026040705204567A55A75, , , John Doe, , , t, 2026-04-07, 05:20:45.52977, , , , , , , , -, -, 0.00, 0.00, null, null, f, f, f, 0, , null, , 2026-04-07 05:20:45.530298+00, 2026-04-07 05:20:45.530308+00, 001, 26, 6, 1, null, 0.00, null).
+
+[ERROR] 2026-04-07 10:50:45 log log_response:253 - Internal Server Error: /api/erp/ws_c2_services_create_sale_order

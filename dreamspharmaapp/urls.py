@@ -36,7 +36,6 @@ urlpatterns = [
     path('auth/superadmin-change-password/', views.SuperAdminChangePasswordView.as_view(), name='superadmin-change-password'),
     
     # ==================== ERP INTEGRATION ENDPOINTS ====================
- 
     path('erp/ws_c2_services_generate_token', views.GenerateTokenView.as_view(), name='generate-token'),
     # Item Masters
     path('erp/ws_c2_services_get_master_data/<int:user_id>/', views.GetItemMasterView.as_view(), name='get-item-master'),

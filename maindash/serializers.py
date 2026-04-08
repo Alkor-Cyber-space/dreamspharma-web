@@ -124,10 +124,18 @@ class RejectKYCSerializer(serializers.Serializer):
 
 
 class DashboardStatisticsSerializer(serializers.Serializer):
-    """Serializer for dashboard statistics"""
+    """Serializer for dashboard statistics with week-over-week comparisons"""
     total_retailers = serializers.IntegerField(read_only=True)
+    retailers_change_percentage = serializers.FloatField(read_only=True)
+    retailers_change_text = serializers.CharField(read_only=True)
+    
     pending_kyc = serializers.IntegerField(read_only=True)
+    pending_kyc_change = serializers.IntegerField(read_only=True)
+    pending_kyc_change_text = serializers.CharField(read_only=True)
+    
     total_orders = serializers.IntegerField(read_only=True)
+    orders_change_percentage = serializers.FloatField(read_only=True)
+    orders_change_text = serializers.CharField(read_only=True)
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -229,6 +237,7 @@ class AddCategorySerializer(serializers.ModelSerializer):
         return value
 
 
+<<<<<<< HEAD
 class AuditLogSerializer(serializers.ModelSerializer):
     """Serializer for AuditLog entries"""
 
@@ -244,3 +253,14 @@ class AuditLogSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = fields
+=======
+from rest_framework import serializers
+from .models import AdminNotification
+
+class AdminNotificationSerializer(serializers.ModelSerializer):
+    """Serializer for admin notifications"""
+    class Meta:
+        model = AdminNotification
+        fields = ['id', 'title', 'message', 'notification_type', 'priority', 'related_id', 'is_read', 'created_at']
+        read_only_fields = ['id', 'title', 'message', 'notification_type', 'priority', 'related_id', 'created_at']        
+>>>>>>> 8f4321160f0d1712f32e9279575fc2c9b31edf37

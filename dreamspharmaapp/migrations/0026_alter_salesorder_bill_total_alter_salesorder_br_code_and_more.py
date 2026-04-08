@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dreamspharmaapp', '0025_fcmdevice_offer_productview'),
+        ('dreamspharmaapp', '0025_offer_productview'),
     ]
 
     operations = [

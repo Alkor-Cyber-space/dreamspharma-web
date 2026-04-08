@@ -237,7 +237,6 @@ class AddCategorySerializer(serializers.ModelSerializer):
         return value
 
 
-<<<<<<< HEAD
 class AuditLogSerializer(serializers.ModelSerializer):
     """Serializer for AuditLog entries"""
 
@@ -253,7 +252,6 @@ class AuditLogSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = fields
-=======
 from rest_framework import serializers
 from .models import AdminNotification
 
@@ -263,4 +261,3 @@ class AdminNotificationSerializer(serializers.ModelSerializer):
         model = AdminNotification
         fields = ['id', 'title', 'message', 'notification_type', 'priority', 'related_id', 'is_read', 'created_at']
         read_only_fields = ['id', 'title', 'message', 'notification_type', 'priority', 'related_id', 'created_at']        
->>>>>>> 8f4321160f0d1712f32e9279575fc2c9b31edf37

@@ -1,6 +1,6 @@
 from django.db import models
-<<<<<<< HEAD
 from django.conf import settings
+from django.utils import timezone
 
 
 class AuditLog(models.Model):
@@ -73,8 +73,6 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.log_id} | {self.action} | {self.performed_by} | {self.category}"
-=======
-from django.utils import timezone
 
 class AdminNotification(models.Model):
     TYPE_CHOICES = (
@@ -110,4 +108,3 @@ class AdminNotification(models.Model):
 
     def __str__(self):
         return f"[{self.priority}] {self.title} - Read: {self.is_read}"
->>>>>>> 8f4321160f0d1712f32e9279575fc2c9b31edf37

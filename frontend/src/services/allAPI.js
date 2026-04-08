@@ -190,8 +190,6 @@ export const deleteCategoryAPI = (id) => {
 export const assignBrandToProductAPI = (data) => {
   return axiosInstance.post("superadmin/assign-brand/", data);
 };
-<<<<<<< HEAD
-=======
 
 // ==================== ORDERS ENDPOINTS ====================
 
@@ -246,4 +244,3 @@ export const getAdminNotificationsAPI = () => {
 export const markAdminNotificationReadAPI = (notificationId) => {
   return axiosInstance.post(`superadmin/notifications/${notificationId}/mark-read/`);
 };
->>>>>>> 8f4321160f0d1712f32e9279575fc2c9b31edf37

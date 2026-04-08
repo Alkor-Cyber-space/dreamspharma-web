@@ -232,3 +232,15 @@ export const updateOfferAPI = (id, data) => {
 export const deleteOfferAPI = (id) => {
   return axiosInstance.delete(`offers/${id}/`);
 };
+
+// ==================== ADMIN NOTIFICATIONS ENDPOINTS ====================
+
+// SuperAdmin - List Notifications
+export const getAdminNotificationsAPI = () => {
+  return axiosInstance.get("superadmin/notifications/");
+};
+
+// SuperAdmin - Mark Notification as Read
+export const markAdminNotificationReadAPI = (notificationId) => {
+  return axiosInstance.post(`superadmin/notifications/${notificationId}/mark-read/`);
+};

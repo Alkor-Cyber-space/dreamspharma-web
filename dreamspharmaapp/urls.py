@@ -36,7 +36,6 @@ urlpatterns = [
     path('auth/superadmin-change-password/', views.SuperAdminChangePasswordView.as_view(), name='superadmin-change-password'),
     
     # ==================== ERP INTEGRATION ENDPOINTS ====================
- 
     path('erp/ws_c2_services_generate_token', views.GenerateTokenView.as_view(), name='generate-token'),
     # Item Masters
     path('erp/ws_c2_services_get_master_data/<int:user_id>/', views.GetItemMasterView.as_view(), name='get-item-master'),
@@ -57,6 +56,9 @@ urlpatterns = [
     path('cart/<int:user_id>/', views.CartView.as_view(), name='cart'),
     path('cart/add/<int:user_id>/', views.AddToCartView.as_view(), name='add-to-cart'),
     path('cart/item/<int:item_id>/', views.UpdateCartItemView.as_view(), name='update-cart-item'),
+    
+    # ==================== ORDERS ENDPOINTS ====================
+    path('orders/<int:user_id>/', views.RetailerOrdersView.as_view(), name='retailer-orders'),
     
     # ==================== WISHLIST ENDPOINTS ====================
     path('wishlist/', views.WishlistView.as_view(), name='wishlist'),
@@ -104,4 +106,6 @@ urlpatterns = [
 
     # Related products (category-based, user-specific)
     path('products/<str:product_id>/related/<int:user_id>/', views.related_products, name='related-products'),
+    path('orders/<int:user_id>/', views.RetailerOrdersView.as_view(), name='retailer-orders'),
+    path('superadmin/orders/', views.SuperAdminOrdersView.as_view(), name='superadmin-orders'),
 ]

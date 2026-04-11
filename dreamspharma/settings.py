@@ -27,9 +27,9 @@ DEBUG = True
 CORS_ALLOW_CREDENTIALS = True
 ALLOWED_HOSTS = ['*']
 
-CORS_ALLOWED_ORIGINS = [
-    "https://dreamspharma-web.vercel.app",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "https://dreamspharma-web.vercel.app",
+# ]
 # Application definition
 
 INSTALLED_APPS = [

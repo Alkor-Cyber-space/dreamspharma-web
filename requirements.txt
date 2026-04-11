@@ -39,7 +39,6 @@ pycparser==3.0
 PyJWT==2.11.0
 pytz==2026.1.post1
 PyYAML==6.0.1
-
 requests==2.33.1
 six==1.17.0
 sqlparse==0.5.5
@@ -47,3 +46,4 @@ typing_extensions==4.15.0
 tzdata==2025.3
 tzlocal==5.3.1
 urllib3==2.6.3
+gunicorn==25.3.0

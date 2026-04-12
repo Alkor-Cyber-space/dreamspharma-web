@@ -29,7 +29,11 @@ CORS_ALLOWED_ORIGINS = [
     "https://dreamspharma-web.vercel.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = ['*']
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'ngrok-skip-browser-warning',
+]
 CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 ALLOWED_HOSTS = ['*']
 

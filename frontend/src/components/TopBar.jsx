@@ -13,6 +13,7 @@ export default function Topbar({ onToggleSidebar }) {
   const [adminName, setAdminName] = useState('Admin');
   const [adminRole, setAdminRole] = useState('Super Admin');
   const [profileImage, setProfileImage] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const fetchNotifications = async () => {
     try {
@@ -69,10 +70,11 @@ export default function Topbar({ onToggleSidebar }) {
     }
   };
 
-  const handleLogout = async () => {
-    const confirmed = window.confirm("Are you sure you want to logout?");
-    if (!confirmed) return;
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
 
+  const confirmLogout = async () => {
     try {
       await superAdminLogoutAPI();
     } catch (error) {
@@ -80,6 +82,7 @@ export default function Topbar({ onToggleSidebar }) {
     } finally {
       localStorage.removeItem("token");
       localStorage.removeItem("superadminInfo");
+      setShowLogoutModal(false);
       navigate("/login");
     }
   };
@@ -140,10 +143,39 @@ export default function Topbar({ onToggleSidebar }) {
         <LogOut
           className="text-gray-600 cursor-pointer hover:text-red-500 transition-colors"
           size={20}
-          onClick={handleLogout}
+          onClick={handleLogoutClick}
         />
 
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-300">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 w-full max-w-xs sm:max-w-sm transform transition-all scale-100 opacity-100">
+            <div className="flex flex-col items-center flex-grow text-center">
+              <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mb-4 border border-red-100">
+                 <LogOut className="text-red-500 w-6 h-6 ml-1" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2 mt-1">Ready to leave?</h3>
+              <p className="text-gray-500 text-sm mb-6 leading-relaxed px-2">Are you sure you want to log out of your account?</p>
+            </div>
+            <div className="flex justify-center gap-3 w-full mt-2">
+              <button 
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 py-2.5 px-4 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl transition-colors border border-gray-200"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmLogout}
+                className="flex-1 py-2.5 px-4 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification Modal */}
       <NotificationModal 

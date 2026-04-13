@@ -1,2 +1,2 @@
-export const serverUrl = "https://earthy-playlist-preseason.ngrok-free.dev/api/"
-export const mediaUrl = "https://earthy-playlist-preseason.ngrok-free.dev"
+export const serverUrl = "https://dreamspharma-web-1-dpjy.onrender.com/api/"
+export const mediaUrl = "https://dreamspharma-web-1-dpjy.onrender.com/"

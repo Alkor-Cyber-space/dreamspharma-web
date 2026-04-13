@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, Package, Archive, Edit, Trash2, Plus, X, Upload } from "lucide-react";
 import SummaryCard from "../components/SummaryCard";
 import { getCategoriesAPI, addCategoryAPI, updateCategoryAPI, deleteCategoryAPI } from "../services/allAPI";
+import { mediaUrl } from "../services/serverUrl";
 
 export default function Categories() {
     const [search, setSearch] = useState("");

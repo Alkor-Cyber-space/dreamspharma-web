@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     # SuperAdmin - Dashboard Statistics
     path('superadmin/dashboard/statistics/', views.DashboardStatisticsView.as_view(), name='superadmin-dashboard-statistics'),
+    path('superadmin/dashboard/daily-volume/', views.DailyVolumeGraphView.as_view(), name='superadmin-daily-volume'),
 
     # SuperAdmin - Change Password
     path('superadmin/change-password/', views.ChangePasswordView.as_view(), name='superadmin-change-password'),

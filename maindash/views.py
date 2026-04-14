@@ -1690,3 +1690,79 @@ class RevenueReportView(APIView, ExcelExportMixin):
             'success': True,
             'data': revenue_list
         })
+class DailyVolumeGraphView(APIView):
+    """
+    API endpoint for getting daily volume graph data and top statistics.
+    GET /api/superadmin/dashboard/daily-volume/?days=7
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'SUPERADMIN':
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            days = int(request.query_params.get('days', 7))
+        except ValueError:
+            days = 7
+
+        now = timezone.now()
+        start_date = (now - timedelta(days=days-1)).date()
+        today_date = now.date()
+
+        # Gather daily order counts and sales
+        daily_stats = SalesOrder.objects.filter(ord_date__range=[start_date, today_date]) \
+            .values('ord_date') \
+            .annotate(
+                order_count=Count('id'),
+                total_sales=Sum('order_total')
+            ) \
+            .order_by('ord_date')
+
+        # Convert to dictionary for easy filling of missing days
+        stats_dict = {item['ord_date']: {'orders': item['order_count'], 'sales': float(item['total_sales'] or 0)} for item in daily_stats}
+
+        graph_data = []
+        max_orders = {'date': None, 'count': 0}
+        max_sales = {'date': None, 'amount': 0.0}
+
+        for i in range(days):
+            current_date = start_date + timedelta(days=i)
+            day_data = stats_dict.get(current_date, {'orders': 0, 'sales': 0.0})
+            
+            graph_data.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'display_date': current_date.strftime('%b %d'),
+                'orders': day_data['orders'],
+                'sales': day_data['sales']
+            })
+
+            if day_data['orders'] > max_orders['count']:
+                max_orders = {'date': current_date.strftime('%Y-%m-%d'), 'count': day_data['orders']}
+            if day_data['sales'] > max_sales['amount']:
+                max_sales = {'date': current_date.strftime('%Y-%m-%d'), 'amount': day_data['sales']}
+
+        # Get top selling product for this period
+        top_product_entry = SalesOrderItem.objects.filter(
+            order_id__ord_date__range=[start_date, today_date]
+        ).values('item_name').annotate(
+            total_qty=Sum('total_loose_qty')
+        ).order_by('-total_qty').first()
+
+        top_selling_product = None
+        if top_product_entry:
+            top_selling_product = {
+                'name': top_product_entry['item_name'],
+                'quantity': float(top_product_entry['total_qty'] or 0)
+            }
+
+        return Response({
+            'success': True,
+            'summary': {
+                'period_days': days,
+                'max_orders_day': max_orders,
+                'max_sales_day': max_sales,
+                'top_selling_product': top_selling_product
+            },
+            'graph_data': graph_data
+        })

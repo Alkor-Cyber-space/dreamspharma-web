@@ -319,8 +319,9 @@ class ChangePasswordView(APIView):
 
 class GetSuperAdminProfileView(APIView):
     """
-    API endpoint for super admin to get profile information.
+    API endpoint for super admin to get and update profile information.
     GET /api/superadmin/profile/ - Get super admin profile info (username, email, phone, image)
+    PUT /api/superadmin/profile/ - Update super admin profile info (email, first_name, last_name, phone_number)
     """
     permission_classes = [IsAuthenticated]
 
@@ -338,6 +339,50 @@ class GetSuperAdminProfileView(APIView):
             'message': 'Profile information fetched successfully',
             'profile': serializer.data
         }, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        """Update profile information for super admin"""
+        # Check if user is a superadmin
+        if request.user.role != 'SUPERADMIN':
+            return Response({
+                'error': 'Only Super Admin can access this endpoint'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = SuperAdminProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+        
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                
+                # ── Audit log ──
+                log_audit(
+                    action='Profile Updated',
+                    performed_by_user=request.user,
+                    target_entity=request.user.username,
+                    details='Super admin updated their profile information',
+                    category='Profile',
+                )
+                
+                logger.info(f"[PROFILE_UPDATED] User: {request.user.username}")
+                
+                return Response({
+                    'message': 'Profile updated successfully',
+                    'profile': serializer.data
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"Error updating profile: {str(e)}")
+                return Response({
+                    'error': f'Error updating profile: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'error': 'Profile update failed',
+            'details': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProfileImageView(APIView):

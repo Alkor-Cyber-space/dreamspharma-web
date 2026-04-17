@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import os
 from pathlib import Path
- 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -23,10 +23,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-v9div(*7#85s3qa+mt-wc%&&57s0sz5bpx4i-(h&)li__-1r*+'
 
 # SECURITY WARNING: don't run with debug turned on in production!
+CORS_ALLOW_ALL_ORIGINS = False
 DEBUG = True
 
+CORS_ALLOWED_ORIGINS = [
+    "https://dreamspharma-web.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5173",
+]
+CORS_ALLOW_CREDENTIALS = True
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'ngrok-skip-browser-warning',
+]
+CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 ALLOWED_HOSTS = ['*']
 
+
+# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -124,6 +140,7 @@ SIMPLE_JWT = {
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -133,10 +150,12 @@ DATABASES = {
         'HOST': 'localhost',     
         'PORT': '5432',         
     }
+
+
 }
-
-
-
+# DATABASES = {
+#     'default': dj_database_url.parse("postgresql://postgres:db_dreamspharma@db.wdpwanzaoacvcyvdqeek.supabase.co:5432/postgres")
+# }
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -183,8 +202,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
+
 
 
 

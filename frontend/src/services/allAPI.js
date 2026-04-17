@@ -1,10 +1,15 @@
 import axios from "axios";
 import { serverUrl } from "./serverUrl";
 
+// const axiosInstance = axios.create({
+//   baseURL: serverUrl,
+// });
 const axiosInstance = axios.create({
   baseURL: serverUrl,
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
 });
-
 axiosInstance.interceptors.request.use(
   (config) => {
     const access = localStorage.getItem("access");
@@ -256,4 +261,8 @@ export const getAuditLogsAPI = (params) => {
 
 export const  getOrdersApi = (params) => {
   return axiosInstance.get("superadmin/orders/", { params });
+}
+
+export const getReportSummaryApi =() =>{
+  return axiosInstance.get('superadmin/reports/summary/')
 }
